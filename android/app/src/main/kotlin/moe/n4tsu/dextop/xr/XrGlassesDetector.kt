@@ -12,11 +12,14 @@ internal data class XrIdentity(val id: String, val displayName: String)
 
 private const val VITURE_VID = 0x35CA
 private const val VITURE_PRO_PID = 0x101D
+private const val XREAL_VID = 0x3318
 
 /**
- * USB beats a display name. When a Viture USB device and an XREAL link are both
- * present, a matching display name breaks the tie; otherwise Viture wins.
- * [xreal] is the whole XREAL family (One vs Air is not split here).
+ * USB vendor id beats a display name. XREAL family match is VID 0x3318
+ * (Air 2 Pro EDID is "Air 2 Pro", so the name heuristic misses it), else a
+ * 169.254.2.* link (One-series NIC), else an xreal/nreal display name.
+ * When Viture USB and an XREAL signal are both present, an xreal/nreal
+ * display name breaks the tie; otherwise Viture wins.
  */
 internal fun identifyXrGlasses(signals: XrSignals): XrIdentity? {
     val vitureUsb = signals.usbDevices.filter { it.vendorId == VITURE_VID }
@@ -28,19 +31,21 @@ internal fun identifyXrGlasses(signals: XrSignals): XrIdentity? {
     val xrealLink = signals.linkAddresses.any { address ->
         address.substringBefore('/').substringBefore('%').startsWith("169.254.2.")
     }
+    val xrealUsb = signals.usbDevices.any { it.vendorId == XREAL_VID }
+    val xrealPresent = xrealLink || xrealUsb
     val xrealNamed = signals.displayNames.firstOrNull { isXrealName(it) }
     val vitureNamed = signals.displayNames.firstOrNull { it.lowercase().contains("viture") }
 
     val id = when {
-        vitureId != null && xrealLink && xrealNamed != null -> "xreal"
+        vitureId != null && xrealPresent && xrealNamed != null -> "xreal"
         vitureId != null -> vitureId
-        xrealLink -> "xreal"
+        xrealPresent -> "xreal"
         xrealNamed != null -> "xreal"
         vitureNamed != null -> "viture-pro"
         else -> return null
     }
     val label = when (id) {
-        "xreal" -> xrealNamed ?: "XREAL"
+        "xreal" -> xrealNamed ?: signals.displayNames.firstOrNull() ?: "XREAL"
         "viture" -> vitureNamed ?: "VITURE"
         else -> vitureNamed ?: "VITURE Pro"
     }

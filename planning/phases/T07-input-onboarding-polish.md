@@ -104,4 +104,9 @@ detected, and per-glasses profiles apply every setting on plug-in.
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+From T03 close-out (2026-11-14):
+
+- HID teardown has to cancel the USB request and join the reader
+  before releasing the interface. Closing first leaves the interface
+  claimed and the next plug cannot start the stream. Both adapters
+  share that order.

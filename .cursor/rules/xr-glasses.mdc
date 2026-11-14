@@ -50,12 +50,15 @@ Production registers nothing until a device adapter task. Registry tests call
 ## Detection + session (T02+)
 
 Identity ids: `viture-pro` (VID `0x35CA` + PID `0x101D`, or a `viture` display
-name), `viture` (other `0x35CA` PID), `xreal` (link host starts with
-`169.254.2.`, or an `xreal`/`nreal` display name). Family id is `xreal`, not
-`xreal-one` — One vs Air stays unconfirmed until hardware.
+name), `viture` (other `0x35CA` PID), `xreal` (VID `0x3318`, or a link host
+starting with `169.254.2.`, or an `xreal`/`nreal` display name). Family id is
+`xreal` for every XREAL/Nreal model. Do not key the card on the USB product
+string or on a single PID — EDID and strings vary (`Air 2 Pro` has no
+`xreal` in the panel name). PID and NIC-vs-HID pick the transport later.
 
-USB beats name. When both a Viture USB device and an XREAL link are present,
-any `xreal`/`nreal` display name wins the tie; otherwise keep the Viture id.
+USB beats name. When both a Viture USB device and an XREAL signal (VID or
+link) are present, any `xreal`/`nreal` display name wins the tie; otherwise
+keep the Viture id.
 
 Profiles: SharedPreferences name `dextop_xr`, keys `mode.<id>` /
 `preset.<id>`. Modes `body-lock`|`smooth-follow`|`world-lock`; presets
@@ -95,5 +98,8 @@ Flutter channel methods on `app.freedextop/display`: `xrGlassesState`,
 | Screen drifts slowly over minutes | IMU yaw drift uncorrected | Recenter button + periodic magnetometer/zero-velocity correction in fusion |
 | Panning feels jittery | Raw pose fed to crop without smoothing | Low-pass pose before crop; tune damping; re-test at 60 Hz |
 | Look-around shows black past canvas edge | Crop clamped but offset not | Clamp viewport offset to canvas bounds minus panel size |
+| HID reader dies about 1s after open, or the next submit throws "currently queued" | `UsbDeviceConnection.requestWait(timeout)` throws and leaves the UsbRequest queued | Catch the timeout. Do not clear or requeue. Wait again on that request. |
+| Interrupt OUT write succeeds and the IN endpoint stays empty | Interrupt IN read went through bulkTransfer | Read interrupt IN with UsbRequest. bulkTransfer is fine for interrupt OUT. |
+| Next plug cannot reclaim the HID interface | Connection closed while a request wait was still in flight | Cancel the request, join the reader, then release and close. |
 
 <!-- last-verified: 2026-11 -->

@@ -31,8 +31,16 @@ https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md (mode-detection
   Dextop's density override handles it.
 - Official native Android SDK does not exist (Unity-only; Enterprise SDK
   undocumented) — community TCP protocol is the only FOSS path.
-- Model identity on hand is uncertain (One vs Air — verify on hardware; Air
-  needs a different transport, same adapter interface).
+- Owned pair verified 2026-11-14 on SM-S948B: **XREAL Air 2 Pro**, not One.
+  EDID name `Air 2 Pro`, PNP `MRG`, product id 12597, week 8 / 2023.
+  Panel 1920×1080 @ 60/90/120, dpi placeholder 25.4, HDR max 500 nits.
+  USB VID **0x3318**, PID **0x0432**, manufacturer `XREAL`, product
+  `XREAL Air 2 Pro`, serial `A00015:28:15`. Interfaces: 0–2 USB audio,
+  3–5 HID 64-byte interrupt in+out, 6 HID in-only 3-byte. **No**
+  `169.254.2.*` NIC — One TCP (`:52998`) does not apply to this unit.
+  Card match is the vendor id, not the string and not this PID. Other
+  models stay `xreal`; the adapter picks HID vs TCP from NIC presence.
+  Air HID permission is not wired yet (device filter is still Viture-only).
 
 ## Known control commands (community, firmware 1.8.1)
 

@@ -69,6 +69,17 @@ class XrGlassesDetectorTest {
         assertEquals("viture-pro", identity?.id)
     }
 
+    @Test fun xrealVendorIdMatchesAirPanelName() {
+        val identity = identifyXrGlasses(
+            XrSignals(
+                usbDevices = listOf(XrUsbDevice(0x3318, 0x0432)),
+                displayNames = listOf("Air 2 Pro"),
+            ),
+        )
+        assertEquals("xreal", identity?.id)
+        assertEquals("Air 2 Pro", identity?.displayName)
+    }
+
     @Test fun xrealNameStillWinsWhenAVitureNameIsListedFirst() {
         val identity = identifyXrGlasses(
             XrSignals(

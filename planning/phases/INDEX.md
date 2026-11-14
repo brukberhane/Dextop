@@ -14,7 +14,7 @@ see task stubs' high-level notes and `.cursor/rules/xr-glasses.mdc`
 | -- | ----- | ------ | ---------- | ---- | ----- | ----- |
 | T01 | [XR pose provider abstraction + skeleton](./T01-xr-pose-provider-skeleton.md) | ✅ | — | T02 | L0 | Interface + fake provider; no hardware |
 | T02 | [Glasses detection + XR settings card + profiles](./T02-glasses-detection-settings.md) | ✅ | T01 | T03 | L6 | Viture VID/PID, XREAL USB-NIC, display-name heuristics |
-| T03 | [Viture Pro Gen1 HID adapter](./T03-viture-hid-adapter.md) | Pending | T02 | T04 | L5 | Community protocol, no SDK blob |
+| T03 | [Viture Pro Gen1 HID adapter](./T03-viture-hid-adapter.md) | ✅ | T02 | T04 | L5 | Pro IMU 62.8 Hz, CRC XMODEM, no SDK blob |
 | T04 | [XREAL One TCP adapter](./T04-xreal-tcp-adapter.md) | Pending | T03 | T05 | L5 | USB-NIC sockets; verify actual model on hardware |
 | T05 | [3DoF fusion + stabilization modes + head-tracked viewport](./T05-fusion-stabilization-viewport.md) | Pending | T04 | T06 | L4 | body-lock / smooth-follow / world-lock over mirror layer |
 | T06 | [Geometry presets + pan + recenter](./T06-geometry-presets.md) | Pending | T05 | T07 | L6 | Single / triple (zones or drop) / ultrawide |
@@ -44,3 +44,9 @@ see task stubs' high-level notes and `.cursor/rules/xr-glasses.mdc`
 
 Existing app (v2.0.0+39) predates this plan; these phases cover the XR glasses
 feature only, built on the current display stack.
+
+## Status History
+
+| Timestamp | ID | Event | From | To |
+| --------- | -- | ----- | ---- | -- |
+| 2026-11-14 17:45 Africa/Addis_Ababa | T03 | /task-3-complete | InProgress | ✅ |

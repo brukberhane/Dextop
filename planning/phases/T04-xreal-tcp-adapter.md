@@ -107,14 +107,34 @@ for mode heuristics) — never toggles SBS.
 
 From T02 close-out (2026-11-14):
 
-- Family identity id is `xreal` (not `xreal-one`). Link heuristic: any
-  `LinkAddress` host starting with `169.254.2.`. Name heuristic: display name
-  contains `xreal` or `nreal`. One vs Air still unverified — first T04 action.
-- When both Viture USB and an XREAL link are present, any xreal/nreal display
-  name wins the tie; otherwise Viture wins. USB still beats name alone.
+- Hardware 2026-11-14: owned glasses are **XREAL Air 2 Pro**, not One.
+  VID `0x3318` PID `0x0432`. EDID `Air 2 Pro` (PNP `MRG`, product 12597).
+  USB audio + three 64-byte HID interfaces. No `169.254.2.*` interface, so
+  the One TCP transport is the wrong path for this unit. Card match is VID
+  `0x3318` (already in the detector). Transport stays this task: Air HID,
+  with One TCP only if a later unit actually exposes the NIC.
+- Family identity id is `xreal` (not `xreal-one`, not `air-2-pro`). Fallbacks
+  still: link host `169.254.2.*`, display name contains `xreal` or `nreal`.
+  Do not match the USB product string.
+- When both Viture USB and an XREAL signal are present, any xreal/nreal
+  display name wins the tie; otherwise Viture wins.
 - No USB permission dialog for XREAL TCP. Profiles use the same `dextop_xr`
   store under key `mode.xreal` / `preset.xreal`.
 - Recenter is host-side via the registered `XrPoseProvider` (card already
   calls the registry). Do not send glasses-side Anchor/recenter APIs.
 - Channel methods already exist: `xrGlassesState`, `setXrGlassesProfile`,
   `xrGlassesRecenter`. Onboarding Follow/Stabilizer hint stays T07.
+
+From T03 close-out (2026-11-14), same phone SM-S948B:
+
+- Air 2 Pro is HID, so it needs a USB permission grant. The "no dialog"
+  note above is the TCP path only. `res/xml/xr_usb_device_filter.xml`
+  lists vendor 13770 (Viture) and not VID `0x3318` (decimal 13080). Add
+  that vendor before expecting an attach grant.
+- Interrupt OUT `bulkTransfer` delivered a full buffer. Interrupt IN
+  `bulkTransfer` returned no payload. The read that worked was
+  `UsbRequest`. `requestWait(timeout)` throws `TimeoutException` and
+  leaves the request queued: catch it, do not clear, do not requeue,
+  wait again on the same request.
+- Tear-down order that keeps the next plug able to claim: cancel the
+  request, join the reader, then release the interfaces and close.

@@ -56,6 +56,7 @@ internal object XrGlassesMonitor {
             receiver.also { receiver = null }
         }
         if (current != null) runCatching { app.unregisterReceiver(current) }
+        VitureHidSession.stop()
     }
 
     fun onDisplaysChanged(context: Context) {
@@ -153,6 +154,16 @@ internal object XrGlassesMonitor {
                 val profiles = store ?: PrefsXrProfileStore(context).also { store = it }
                 profiles.read(identity.id)
             }
+        }
+        val vitureDevice = when (identity?.id) {
+            "viture-pro" -> viture.firstOrNull { it.productId == 0x101D }
+            "viture" -> viture.firstOrNull { it.productId != 0x101D }
+            else -> null
+        }
+        if (vitureDevice != null && permission == "granted" && identity != null) {
+            VitureHidSession.start(context, vitureDevice, identity.id, identity.displayName)
+        } else {
+            VitureHidSession.stop()
         }
     }
 

@@ -102,4 +102,10 @@ external-display behavior is unchanged.
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+From T03 close-out (2026-11-14):
+
+- Viture Pro on SM-S948B streamed pose at 62.8 Hz. CRC locked to
+  XMODEM little-endian. MCU acked IMU enable `0x15`.
+- Still open on that unit: a head turn for axis signs (left / up /
+  roll right), and a Recenter press whose next logged pose is near 0.
+  Those two are the Viture half of the E2E pose check.

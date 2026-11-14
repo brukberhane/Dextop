@@ -107,4 +107,9 @@ apparent distance. Presets resize the logical desktop via the existing
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+From T03 close-out (2026-11-14):
+
+- Presets consume the provider pose after the host origin subtract.
+  The Viture wire roll sits near 2.90 rad at rest, so a preset that
+  reads the wire angles starts far from center. Recenter stays the
+  host origin reset. Do not send a glasses-side recenter.

@@ -111,4 +111,16 @@ adapters.
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+From T03 close-out (2026-11-14):
+
+- Viture Pro IMU measured **62.8 Hz** over 5 seconds on SM-S948B. The
+  community 120–500 Hz range did not match. Budget fusion and the
+  per-frame crop for ~60 Hz samples with gaps. The 60 Hz performance
+  bar in `xr-glasses.mdc` is the rate to hit.
+- The provider pose is origin-relative. A resting wire sample before
+  that subtract was about yaw 0.04 rad, pitch 0.04 rad, roll 2.90 rad.
+  Do not feed wire degrees to the viewport.
+- Axis map in the adapter is yaw = −raw0, pitch = raw2, roll = −raw1
+  (raw0 at byte 18). Head-left, chin-up, and roll-right were not
+  captured. The first hardware viewport check has to confirm those
+  three signs and flip only a wrong one.

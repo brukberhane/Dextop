@@ -14,6 +14,12 @@ https://www.viture.com/developer/glasses-sdk/glasses (official SDK — proprieta
 - Composite USB device on the same USB-C link as DP video.
   VID **0x35CA**, Viture Pro PID **0x101D**. Several HID interfaces — dedupe,
   IMU and MCU control are separate interfaces.
+- Owned Pro verified 2026-11-14 on SM-S948B. EDID name `VITURE`, PNP `CVT`,
+  product id 12594, week 32 / 2023. Panel 1920×1080 @ 60 (active) / 90 / 120,
+  dpi placeholder 25.4, HDR max 500 nits. USB strings: manufacturer
+  `VITURE Pro`, product `N6P XR Glasses`, serial `208539935432`, config
+  `Custom HID App`. Interfaces: 0 and 1 HID 64-byte interrupt in+out,
+  2 CDC ACM, 3 CDC data bulk 64-byte. Dextop uid held `UsbManager` permission.
 - Viture Pro: 1080p/eye, 2D modes 1920×1080 @ 60/90/120 (host-dependent),
   SBS 3840×1080 (we never drive SBS — 2D only). FOV ≈ 46° diagonal
   (~40°H × 23°V conservative), ~42 ppd.
@@ -24,17 +30,35 @@ https://www.viture.com/developer/glasses-sdk/glasses (official SDK — proprieta
   reuse the Linux USB permission action. A dismissed dialog stays denied until
   an explicit UI re-request; do not ask again from a poll loop.
 
-## Protocol notes (Gen1, community-documented)
+## Protocol notes (Gen1, measured on this Pro)
 
-- 64-byte HID reports, CRC-16 over the payload. **Framing discrepancy in the
-  wild**: some docs say CRC-16/XMODEM, others measure CRC-16/CCITT-FALSE
-  (poly 0x1021, init 0xFFFF) — test both on hardware before committing.
-- Pose: enable IMU stream with command `0x15`; unsolicited `0xFFFC` reports
-  carry big-endian float32 Euler angles at offset 18.
-- Control (MCU interface): recenter command id `0x30`; display mode set
-  `0x0124` (values 0x31 1080p60, 0x32 SBS, 0x33 90 Hz, 0x34 120 Hz — written
-  twice, little-endian; read-back unreliable, current mode via `0x0142`);
-  brightness `0x0122` (0–8). Commands ride the MCU interface, not the IMU one.
+- Enable the glasses acked, 2026-11-14: 64-byte buffer, header `FF FE`,
+  length field `0x0D` (`0x0C + payload`, little-endian), command `0x15` at
+  offset 14, payload `01` at offset 18. No message counter. No `0x03` end
+  marker. CRC-16/XMODEM (poly `0x1021`, init 0) stored little-endian at
+  offset 2, over `lengthField + 2` bytes from offset 4. Opens
+  `FF FE 27 25 0D 00 … 15 00 00 00 01`. The 20-byte CCITT packet was not
+  required.
+- IMU reports are `FF FC` on interface 0 interrupt IN. Three big-endian
+  float32 degrees at offsets 18, 22, 26. This Pro's CRC locked to that same
+  XMODEM little-endian check on the first report. Still probe CCITT-FALSE
+  (init `0xFFFF`, stored big-endian) and lock whichever matches. Do not drop
+  reports before the lock.
+- MCU ack is `FF FD` on interface 1 interrupt IN. This Pro acked `0x15`
+  immediately (`FF FD … 15 00`).
+- Axis map in use: yaw = −degrees at 18, pitch = degrees at 26, roll =
+  −degrees at 22, then radians. Resting sample before the origin subtract:
+  yaw ~0.04 rad, pitch ~0.04 rad, roll ~2.90 rad. A head turn has not
+  confirmed the signs.
+- Claim interfaces 0 (IMU) and 1 (MCU) only, with `claimInterface(iface, true)`.
+  Write commands on interface 1 OUT. Read both interrupt IN endpoints. Do
+  not claim CDC interfaces 2 and 3.
+- Recenter is the host origin reset. Do not send `0x30`. That id is the
+  later SDK native-picture recenter, not the Gen1 IMU zero. Do not send
+  display-mode or brightness commands.
+- Measured pose rate: **62.8 Hz** over 5 seconds on SM-S948B. The community
+  120–500 Hz range did not match this unit. Fusion must tolerate ~60 Hz
+  and gaps.
 - EDID changes on mode switches (HPD low/high) — some phones keep stale DP
   state → black screen or 640×480. Treat mode switches as disconnect/reconnect.
 
@@ -42,16 +66,19 @@ https://www.viture.com/developer/glasses-sdk/glasses (official SDK — proprieta
 
 - Never vendor the official `libglasses.so` / SDK zip — proprietary, GPL-incompatible.
 - Never toggle 2D/SBS or refresh from Dextop (decision: 2D only).
-- Pose arrives at ~120–500 Hz; fusion must tolerate gaps (sample rate not
-  officially documented — measure on hardware).
+- Pose on this Pro is ~63 Hz, not the community 120–500 Hz range. Fusion
+  must tolerate that rate and gaps.
 
 ## Symptom / cause / fix skeleton
 
 | Symptom | Cause | Fix |
 | ------- | ----- | --- |
-| `0xFFFC` reports stop after a minute | IMU enable handshake not retried after interface re-open | Re-send `0x15` on USB re-attach; watch for interface claim conflicts |
-| Commands ignored | Sent on IMU interface instead of MCU interface | Route control to MCU HID interface |
-| CRC rejected on some units | XMODEM vs CCITT-FALSE framing variance | Detect per device; log raw frames on first contact |
+| `0xFFFC` reports stop after a minute | IMU enable not retried after the interface re-opens | Re-send `0x15` on USB re-attach. Do not poll. |
+| Enable write returns 64 and no IMU bytes arrive | Interrupt IN was read with bulkTransfer | Read interrupt IN with UsbRequest. On timeout, wait again on the same request. Do not clear or requeue it. |
+| Reader dies at ~1s, or the next queue throws "currently queued" | `requestWait(timeout)` throws TimeoutException and leaves the request queued | Catch the timeout. Leave the request queued. |
+| Next plug cannot claim the HID interfaces | Device closed while a request was still waiting | Cancel the request, join the reader, then send IMU-off and release interfaces 0 and 1. |
+| CRC rejected | Wrong init or endian | This Pro matched XMODEM stored little-endian. Probe CCITT-FALSE big-endian and lock the first match. |
+| Picture jumps when recenter is pressed | MCU `0x30` sent (SDK picture recenter) | Host origin reset only. Do not write `0x30`. |
 | Black screen after refresh-rate change | Stale DP state across HPD/EDID change | Treat as reconnect; re-attach mirror on DisplayListener event |
 
 <!-- last-verified: 2026-11 -->
