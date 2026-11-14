@@ -1,5 +1,7 @@
 package moe.n4tsu.dextop.xr
 
+import android.util.Log
+
 /**
  * Origin-relative 3DoF head orientation.
  *
@@ -64,7 +66,7 @@ internal abstract class AbstractXrPoseProvider : XrPoseProvider {
     private var currentAvailability: XrAvailability = XrAvailability.UNAVAILABLE
     override val availability: XrAvailability get() = currentAvailability
 
-    protected fun publishRaw(rawYaw: Float, rawPitch: Float, rawRoll: Float, timestampNanos: Long) {
+    protected fun publishRaw(rawYaw: Float, rawPitch: Float, rawRoll: Float, timestampNanos: Long): XrPose {
         val pose: XrPose
         val listeners: List<XrPoseListener>
         synchronized(lock) {
@@ -78,6 +80,7 @@ internal abstract class AbstractXrPoseProvider : XrPoseProvider {
             listeners = poseListeners.toList()
         }
         for (listener in listeners) listener.onPose(pose)
+        return pose
     }
 
     protected fun publishAvailability(next: XrAvailability) {
@@ -104,8 +107,18 @@ internal abstract class AbstractXrPoseProvider : XrPoseProvider {
 
     override fun recenter() {
         synchronized(lock) {
-            origin = lastRaw ?: return
+            val raw = lastRaw
+            if (raw == null) {
+                runCatching { Log.i(TAG, "recenter before first pose") }
+                return
+            }
+            origin = raw
+            runCatching { Log.i(TAG, "recenter yaw=${raw.yaw} pitch=${raw.pitch} roll=${raw.roll}") }
         }
+    }
+
+    private companion object {
+        const val TAG = "DextopXr"
     }
 
     private data class RawPose(val yaw: Float, val pitch: Float, val roll: Float)

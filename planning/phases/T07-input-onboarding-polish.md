@@ -122,3 +122,11 @@ From T04 close-out (2026-11-14):
 - The USB Allow dialog can open on the built-in panel while that panel
   is off and the glasses are the lit display. Wake the phone; the
   dialog is already there.
+
+From T05 close-out (2026-11-14):
+
+- Trackpad role input works and must stay off the phone-normal hold.
+  The user still saw the phone's own UI, with no trackpad overlay and
+  no black surface. They asked whether that surface should go black,
+  like the old touchpad deck. Not done here. Do not bring back
+  `overlay_display_devices` to hide it.

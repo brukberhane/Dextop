@@ -645,6 +645,8 @@ internal abstract class CompositedWindowShell(
     private var popupDismissedKind: String? = null
     /** Whether the shell overlay may take input focus; see [updateShellFocus]. */
     private var shellFocusable = !passiveShellFocus
+    /** Phone role during look: this overlay must not win FocusedDisplayId. */
+    private var phoneTouchscreenFree = false
     private var kickoff: KickoffView? = null
     private var krunner: KRunnerView? = null
     private var tooltip: PanelTooltipView? = null
@@ -775,7 +777,7 @@ internal abstract class CompositedWindowShell(
         if (newWidth == width && newHeight == height) { syncLinuxDisplays(); return }
         width = newWidth
         height = newHeight
-        layer.show(root, Rect(0, 0, width, height), focusable = shellFocusable, title = shellTitle)
+        presentShell()
         if (autoMode) root.setBackgroundColor(AutoColors(palette).background) else wallpaper.refresh()
         layoutPanel()
         bookUi?.place(primaryOutput())
@@ -896,7 +898,7 @@ internal abstract class CompositedWindowShell(
         } else {
             buildDesktopChrome()
         }
-        layer.show(root, Rect(0, 0, width, height), focusable = shellFocusable, title = shellTitle)
+        presentShell()
     }
 
     /** Constructed exclusively for the Plasma desktop, never for the car shell. */
@@ -4004,12 +4006,45 @@ internal abstract class CompositedWindowShell(
     }
 
     /**
+     * Look mode with phone role "phone". [free] makes this overlay not
+     * focusable and not touchable, then moves input focus to the phone
+     * display. Touchpad role never sets this. Resize and popup focus must
+     * not undo it.
+     */
+    override fun setPhoneTouchscreenFree(free: Boolean) {
+        phoneTouchscreenFree = free
+        if (!::root.isInitialized) return
+        if (!free) shellFocusable = !passiveShellFocus
+        presentShell()
+        if (!free) updateShellFocus()
+    }
+
+    private fun presentShell() {
+        if (!::root.isInitialized) return
+        val focusable = !phoneTouchscreenFree && shellFocusable
+        layer.show(
+            root,
+            Rect(0, 0, width, height),
+            touchable = !phoneTouchscreenFree,
+            focusable = focusable,
+            title = shellTitle,
+        )
+        if (phoneTouchscreenFree) {
+            runCatching { bridge.focusDisplay(android.view.Display.DEFAULT_DISPLAY) }
+        }
+    }
+
+    /**
      * With [passiveShellFocus], the overlay is focusable only while a Plasma
      * text field (popup, overview search or leave screen) is open. Otherwise
      * touches would move focus off the application display and close its
      * keyboard; shortcuts still arrive through the accessibility service.
      */
     private fun updateShellFocus() {
+        if (phoneTouchscreenFree) {
+            presentShell()
+            return
+        }
         if (!passiveShellFocus || !::root.isInitialized) return
         // A Linux window in front takes the keyboard and may capture the pointer (games), which
         // Android grants only to the focused window: the shell's.
@@ -4017,7 +4052,7 @@ internal abstract class CompositedWindowShell(
         val focusable = popup != null || overviewActive || leaveScreen != null || linuxKeyboardShown || bookFocus || linuxInFront
         if (focusable == shellFocusable) return
         shellFocusable = focusable
-        layer.show(root, Rect(0, 0, width, height), focusable = focusable, title = shellTitle)
+        presentShell()
         if (!focusable) windows.firstOrNull { it.id == activeId && !it.minimized }?.let(::focusWindowDisplay)
         // The shell's display becomes the top-focused one, or its window cannot hold focus.
         if (linuxInFront) {

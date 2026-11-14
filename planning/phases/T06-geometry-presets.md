@@ -116,7 +116,17 @@ From T03 close-out (2026-11-14):
 
 From T04 close-out (2026-11-14):
 
-- Air fused pose before Recenter sat near yaw −0.527, pitch 0.227,
-  roll 2.711 rad while the glasses were still. Same rule as Viture:
-  presets read the origin-relative pose. Recenter was not pressed on
-  this capture.
+- Air fused pose before the first Recenter sat near yaw −0.527,
+  pitch 0.227, roll 2.711 rad. Recenter confirmed 18:50
+  Africa/Addis_Ababa: the next logged pose was near 0 on all three
+  axes. Presets read that origin-relative pose.
+
+From T05 close-out (2026-11-14):
+
+- The temporary look-mode canvas is not panel×2 by panel height.
+  The glasses show a 1.6× panel window, scaled into the lens. The
+  desktop is that window plus one radian of slack on each side. At
+  1920×1080 that canvas is 6912×3888, and reaching an edge is about
+  ±1 rad of yaw (~57°) and about ±0.56 rad of pitch. The user felt
+  that as a very large screen. Presets replace this canvas. Do not
+  treat the travel as a stuck crop.

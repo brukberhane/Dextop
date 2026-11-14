@@ -43,6 +43,7 @@ internal data class MirrorAttachRequest(
 
 internal interface MirrorAttachment {
     fun update(request: MirrorAttachRequest): Boolean = false
+    fun updateCrop(crop: android.graphics.Rect): Boolean = false
     fun release()
 }
 
@@ -204,6 +205,8 @@ internal class DisplayMirrorBackend(
         error(moe.n4tsu.dextop.InlineStrings.format(moe.n4tsu.dextop.localText("uiNoCompatibleMirrorBackend0"), attempts.joinToString { "${it.strategy}=${it.detail}" }))
     }
 
+    fun updateCrop(crop: android.graphics.Rect): Boolean = attachment?.updateCrop(crop) == true
+
     fun attachSurface(
         displayId: Int,
         surface: Surface,
@@ -298,14 +301,36 @@ private fun attachLayer(layer: SurfaceControl, request: MirrorAttachRequest): Mi
     }
     SurfaceControl.Transaction::class.java.getMethod("show", SurfaceControl::class.java).invoke(transaction, layer)
     transaction.apply()
+    transaction.close()
     return object : MirrorAttachment {
+        private val cropTransaction = SurfaceControl.Transaction()
+
+        override fun updateCrop(crop: android.graphics.Rect): Boolean = runCatching {
+            val scale = minOf(
+                request.hostWidth.toFloat() / crop.width().coerceAtLeast(1),
+                request.hostHeight.toFloat() / crop.height().coerceAtLeast(1),
+            )
+            val offsetX = (request.hostWidth - crop.width() * scale) / 2f - crop.left * scale
+            val offsetY = (request.hostHeight - crop.height() * scale) / 2f - crop.top * scale
+            SurfaceControl.Transaction::class.java.getMethod(
+                "setMatrix", SurfaceControl::class.java, Float::class.javaPrimitiveType,
+                Float::class.javaPrimitiveType, Float::class.javaPrimitiveType, Float::class.javaPrimitiveType,
+            ).invoke(cropTransaction, layer, scale, 0f, 0f, scale)
+            cropTransaction.setPosition(layer, offsetX, offsetY)
+            cropTransaction.setCrop(layer, crop)
+            cropTransaction.apply()
+            true
+        }.getOrDefault(false)
+
         override fun release() {
             runCatching {
                 val removal = SurfaceControl.Transaction()
                 SurfaceControl.Transaction::class.java.getMethod("remove", SurfaceControl::class.java)
                     .invoke(removal, layer)
                 removal.apply()
+                removal.close()
             }
+            runCatching { cropTransaction.close() }
             layer.release()
         }
     }
@@ -377,6 +402,7 @@ private class VirtualDisplayMirrorBackend(
         }
         val placement = attachLayer(layer, request)
         return object : MirrorAttachment {
+            override fun updateCrop(crop: android.graphics.Rect) = placement.updateCrop(crop)
             override fun release() {
                 runCatching { recording.release() }
                 surface.release()

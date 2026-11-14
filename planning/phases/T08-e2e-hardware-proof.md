@@ -114,8 +114,15 @@ From T04 close-out (2026-11-14):
 
 - Air 2 Pro on the same phone streamed fused pose at 991.4 Hz,
   `timestamp=ns`, IMU endpoints `0x84`/`0x05`, one START `wrote=9`.
-- Still open on that unit: the same head-turn signs and a Recenter
-  press. Stationary pose before Recenter was yaw −0.527, pitch 0.227,
-  roll 2.711 rad.
+- Recenter confirmed 2026-11-14 18:50 Africa/Addis_Ababa. Three presses,
+  `recenter providers=1` each time. Next pose was about yaw −0.001,
+  pitch 0.002, roll −0.005. Head-turn signs are still open.
 - USB Allow opened on the sleeping phone panel while the glasses were
   the lit display. Wake the phone to accept it.
+
+From T05 close-out (2026-11-14):
+
+- XREAL Air 2 Pro look-around and both phone roles were accepted by
+  the user. Viture was not plugged. Axis signs on both pairs are still
+  unconfirmed. A backwards picture is the viewport pixel sign only
+  when the pose log already has the correct sign.

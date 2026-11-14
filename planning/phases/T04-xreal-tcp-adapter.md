@@ -346,7 +346,7 @@ Success: `endpoints in=132 out=5`, `timestamp=ns`, `pose-rate` near 1000 Hz. Loo
 - This Air 2 Pro answered the first 9-byte START. Timestamp unit is ns. Pose rate was 991.4 Hz. IMU endpoints match Air 1 (`0x84` in, `0x05` out).
 - The USB Allow dialog opened on the sleeping phone panel while the glasses were the lit display. Waking the phone revealed the dialog that was already up.
 - A failed reader has to stay latched until unplug, or the 2-second snapshot reclaim loop takes interface 3.
-- Head-turn signs and the Recenter press were not captured. Stationary fused pose before Recenter: yaw −0.527, pitch 0.227, roll 2.711 rad.
+- Recenter confirmed later the same evening (18:50 Africa/Addis_Ababa): `providers=1`, next pose near 0 on all three axes. Head-turn signs were not captured. Stationary fused pose before the first Recenter: yaw −0.527, pitch 0.227, roll 2.711 rad.
 
 ## Reality notes
 

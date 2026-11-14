@@ -19,4 +19,12 @@ internal interface DesktopShell {
      * panel. Empty: the display is one screen.
      */
     fun setOutputs(outputs: List<android.graphics.Rect>) {}
+
+    /**
+     * Phone role is "phone" during look mode. The shell must not take input
+     * focus and must not be a touch target, or the phone touchscreen is
+     * delivered to this display instead of the app on the phone.
+     * Touchpad role never calls this.
+     */
+    fun setPhoneTouchscreenFree(free: Boolean) {}
 }

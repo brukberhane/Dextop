@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.net.ConnectivityManager
+import android.util.Log
 import android.net.LinkAddress
 import moe.n4tsu.dextop.ExternalDisplayDetector
 
@@ -22,6 +23,25 @@ internal object XrGlassesMonitor {
     private var usbPermission = "not_required"
     private val permissionAsked = HashSet<Int>()
     private var receiver: BroadcastReceiver? = null
+    private val sessionListeners = ArrayList<() -> Unit>()
+
+    fun currentProfile(): XrProfile = synchronized(lock) { profile }
+
+    fun sessionId(): String? = synchronized(lock) { session?.id }
+
+    fun addSessionListener(listener: () -> Unit) {
+        val notify = synchronized(lock) { sessionListeners.add(listener) }
+        if (notify) listener()
+    }
+
+    fun removeSessionListener(listener: () -> Unit) {
+        synchronized(lock) { sessionListeners.remove(listener) }
+    }
+
+    private fun notifySession() {
+        val listeners = synchronized(lock) { sessionListeners.toList() }
+        listeners.forEach { it() }
+    }
 
     fun start(context: Context) {
         val app = context.applicationContext
@@ -96,6 +116,7 @@ internal object XrGlassesMonitor {
             if (session?.id == id) profile = XrProfile(mode, preset)
             true
         }
+        if (saved) notifySession()
         return saved
     }
 
@@ -112,7 +133,9 @@ internal object XrGlassesMonitor {
     }
 
     fun recenter(): String {
-        XrPoseProviders.all().forEach { it.recenter() }
+        val providers = XrPoseProviders.all()
+        runCatching { Log.i("DextopXr", "recenter providers=${providers.size}") }
+        providers.forEach { it.recenter() }
         return "ok"
     }
 
@@ -165,6 +188,7 @@ internal object XrGlassesMonitor {
                 profiles.read(identity.id)
             }
         }
+        notifySession()
         val vitureDevice = when (identity?.id) {
             "viture-pro" -> viture.firstOrNull { it.productId == 0x101D }
             "viture" -> viture.firstOrNull { it.productId != 0x101D }

@@ -183,7 +183,7 @@ internal class XrealAirHidPoseProvider(
                 sample.accelG[2],
                 step,
             )
-            publishRaw(pose[0], pose[1], pose[2], System.nanoTime())
+            val published = publishRaw(pose[0], pose[1], pose[2], System.nanoTime())
             if (!sawSensor) {
                 sawSensor = true
                 publishAvailability(XrAvailability.STREAMING)
@@ -192,7 +192,10 @@ internal class XrealAirHidPoseProvider(
             if (dt != null) deviceNanos += dt.toDouble() * 1_000_000_000.0
             if (System.nanoTime() - lastPoseLog >= 1_000_000_000L) {
                 lastPoseLog = System.nanoTime()
-                Log.i(TAG, "pose yaw=${pose[0]} pitch=${pose[1]} roll=${pose[2]}")
+                Log.i(
+                    TAG,
+                    "pose yaw=${published.yawRadians} pitch=${published.pitchRadians} roll=${published.rollRadians}",
+                )
             }
             if (!loggedRate && deviceNanos >= 5_000_000_000.0) {
                 loggedRate = true

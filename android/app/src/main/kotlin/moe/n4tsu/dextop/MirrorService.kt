@@ -53,6 +53,7 @@ import android.util.Log
 import android.util.Base64
 import android.view.Gravity
 import android.view.DragEvent
+import android.view.Choreographer
 import android.view.Display
 import android.view.HapticFeedbackConstants
 import android.view.InputDevice
@@ -1374,6 +1375,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                 Log.i(logTag, "privileged input [$category] $message")
                 when (category) {
                     "uinput_created" -> {
+                        if (phoneNormalHold) return@onInputState
                         privilegedInputClient.acknowledgeEngineStarted()
                         privilegedInputStarting = false
                         val generation = virtualMouseGeneration
@@ -1384,6 +1386,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                     }
 
                     "device_discovered" -> {
+                        if (phoneNormalHold) return@onInputState
                         touchscreenReaderRunning = true
                         // A readable EventHub node is only a candidate.  Do
                         // not suppress the overlay's MotionEvent path until
@@ -1396,6 +1399,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                     }
 
                     "source_selected" -> {
+                        if (phoneNormalHold) return@onInputState
                         touchscreenReaderRunning = true
                         touchscreenReaderReady = true
                         virtualPointerOutputObserved = true
@@ -1407,6 +1411,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                     }
 
                     "device_waiting" -> {
+                        if (phoneNormalHold) return@onInputState
                         touchscreenReaderRunning = true
                         touchscreenReaderReady = false
                         touchscreenReaderCandidateCount = 0
@@ -2946,6 +2951,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         mirrorHostWidth = 0
         mirrorHostHeight = 0
         targetDisplayId = -1
+        xrOffscreenDesktop = false
         imeRegionSessionGeneration += 1
         imeRegionProbeFollowUp.set(false)
         imeTouchRegion = null
@@ -3157,8 +3163,9 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                     applicationOverlay = desktopEnvironment.plasmaApplicationOverlay && phoneOwnedDisplay == null,
                     privateAppDisplays = desktopEnvironment.privateApplicationDisplays,
                 )
-            }).also {
+            }                ).also {
                     plasmaShell = it
+                    if (phoneNormalHold) it.setPhoneTouchscreenFree(true)
                     it.start()
                     if (carShell) carVisibleArea?.let { r -> it.setAutoViewport(r[0],r[1],r[2],r[3]) }
                 }
@@ -4520,6 +4527,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     }
 
     private fun refreshPrivilegedInputConfig(reason: String) {
+        if (phoneNormalHold) return
         val profile = virtualPointerRegisteredProfile.ifBlank { activeVirtualPointerProfile() }
         if (profile != "touchpad" && profile != "mouse") return
         privilegedInputClient.updateConfig(buildPrivilegedInputConfig(profile))
@@ -4536,6 +4544,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
      * and lets Android's TouchpadInputMapper own acceleration and gestures.
      */
     private fun startVirtualMouse(profileOverride: String? = null) {
+        if (phoneNormalHold) return
         val profile = normalizeVirtualPointerProfile(profileOverride ?: activeVirtualPointerProfile())
         // Never leave a kernel pointer behind for the phone surface in tap
         // mode. The laptop deck is an explicit exception: its trackpad is a
@@ -9579,6 +9588,25 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         DisplayMirrorBackend(this, contentResolver, getSystemService(DisplayManager::class.java),
             privilegedAccess, desktopEnvironment)
     }
+    private var xrLookOn = false
+    /** Look mode draws the desktop into an off-screen surface. No Overlay # window on the phone. */
+    private var xrOffscreenDesktop = false
+    private var xrMirrorKey: String? = null
+    private val xrSessionListener: () -> Unit = {
+        Handler(android.os.Looper.getMainLooper()).post { syncXrLook() }
+    }
+    private val xrDriver by lazy {
+        moe.n4tsu.dextop.xr.XrViewportDriver(
+            choreographer = Choreographer.getInstance(),
+            profile = { moe.n4tsu.dextop.xr.XrGlassesMonitor.currentProfile() },
+            identity = { moe.n4tsu.dextop.xr.XrGlassesMonitor.sessionId() },
+            panel = { xrPanelSize() },
+            canvas = { xrCanvasSize() },
+            apply = { crop ->
+                externalBackend.updateCrop(Rect(crop.left, crop.top, crop.left + crop.width, crop.top + crop.height))
+            },
+        )
+    }
 
     private inner class ExternalOutput(
         val mode: String,
@@ -9589,8 +9617,8 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         val phoneSurface: SurfaceView,
         val phoneConfig: Config,
     ) : SurfaceHolder.Callback {
-        override fun surfaceCreated(holder: SurfaceHolder) = attachExternalMirror()
-        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = attachExternalMirror()
+        override fun surfaceCreated(holder: SurfaceHolder) = onExternalSurfaceReady()
+        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = onExternalSurfaceReady()
         override fun surfaceDestroyed(holder: SurfaceHolder) = externalBackend.releaseLayer()
     }
 
@@ -9640,8 +9668,11 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         val metrics = android.util.DisplayMetrics().also {
             @Suppress("DEPRECATION") display.getRealMetrics(it)
         }
+        val panelW = metrics.widthPixels and -2
+        val panelH = metrics.heightPixels and -2
+        val (width, height) = if (xrLookOn) xrCanvasSize() else panelW to panelH
         runCatching {
-            resizeActiveDisplay(Config(metrics.widthPixels and -2, metrics.heightPixels and -2,
+            resizeActiveDisplay(Config(width, height,
                 externalDensityFor(metrics), secureDisplay, showSystemDecorations), "display scale")
         }.onFailure { OperationLog.e(this, "ExternalOutput", "display scale change failed", it) }
     }
@@ -9703,11 +9734,13 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                 @Suppress("DEPRECATION") display.getRealMetrics(it)
             }
             if (mode == "external") {
-                // The external window becomes the host Surface; the phone's stops driving the desktop.
+                // Glasses show the desktop. The phone window is not the host, so "Phone"
+                // can shrink it without killing the overlay display.
                 phone.holder.removeCallback(this)
                 releaseMirror()
                 surfaceView = surface
-                surface.holder.addCallback(this)
+                if (xrLookRequested()) surface.holder.addCallback(output)
+                else surface.holder.addCallback(this)
             } else {
                 surface.holder.addCallback(output)
             }
@@ -9723,11 +9756,21 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             when (mode) {
                 // The desktop takes the external screen's size and pixel density.
                 "external" -> {
+                    val panelW = metrics.widthPixels and -2
+                    val panelH = metrics.heightPixels and -2
+                    val look = xrLookRequested()
+                    val (width, height) = if (look) xrCanvasSize() else panelW to panelH
                     runCatching {
-                        resizeActiveDisplay(Config(metrics.widthPixels and -2, metrics.heightPixels and -2,
+                        resizeActiveDisplay(Config(width, height,
                             externalDensityFor(metrics), secureDisplay, showSystemDecorations), "external display")
                     }.onFailure { OperationLog.e(this, "ExternalOutput", "external resize failed", it) }
                     applyExternalPhoneRole(output)
+                    moe.n4tsu.dextop.xr.XrGlassesMonitor.addSessionListener(xrSessionListener)
+                    if (look) {
+                        xrLookOn = true
+                        attachXrMirror()
+                        beginPhoneNormal()
+                    }
                 }
                 "extend" -> {
                     runCatching {
@@ -9744,6 +9787,112 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             OperationLog.e(this, "ExternalOutput", "external display output failed", error)
             hideExternalOutput("failed")
         }.isSuccess
+    }
+
+    private fun xrLookRequested(): Boolean {
+        val id = moe.n4tsu.dextop.xr.XrGlassesMonitor.sessionId() ?: return false
+        if (id != "xreal" && id != "viture" && id != "viture-pro") return false
+        val mode = moe.n4tsu.dextop.xr.XrGlassesMonitor.currentProfile().mode
+        return mode == "world-lock" || mode == "smooth-follow"
+    }
+
+    private fun xrPanelSize(): Pair<Int, Int> {
+        val output = externalOutput ?: return 0 to 0
+        val display = getSystemService(DisplayManager::class.java).getDisplay(output.displayId)
+        if (display == null) return (output.surface.width and -2) to (output.surface.height and -2)
+        val metrics = android.util.DisplayMetrics().also {
+            @Suppress("DEPRECATION") display.getRealMetrics(it)
+        }
+        return (metrics.widthPixels and -2) to (metrics.heightPixels and -2)
+    }
+
+    private fun xrCanvasSize(): Pair<Int, Int> {
+        val (panelW, panelH) = xrPanelSize()
+        return moe.n4tsu.dextop.xr.canvasEdge(panelW) to moe.n4tsu.dextop.xr.canvasEdge(panelH)
+    }
+
+    private fun onExternalSurfaceReady() {
+        if (externalOutput?.mode == "external" && xrLookRequested()) {
+            val (canvasW, canvasH) = xrCanvasSize()
+            if (targetWidth == canvasW && targetHeight == canvasH) attachXrMirror()
+        } else attachExternalMirror()
+    }
+
+    /** World-lock and smooth-follow: one attach, then [DisplayMirrorBackend.updateCrop] per frame. */
+    private fun attachXrMirror() {
+        val output = externalOutput ?: return
+        val surface = output.surface
+        if (!surface.holder.surface.isValid || surface.width <= 0 || targetDisplayId < 0) return
+        val (canvasW, canvasH) = xrCanvasSize()
+        val (panelW, panelH) = xrPanelSize()
+        if (panelW <= 0 || panelH <= 0 || canvasW <= 0 || canvasH <= 0) return
+        val cropW = moe.n4tsu.dextop.xr.viewEdge(panelW).coerceAtMost(canvasW)
+        val cropH = moe.n4tsu.dextop.xr.viewEdge(panelH).coerceAtMost(canvasH)
+        val key = "$canvasW:$canvasH:${surface.width}:${surface.height}:$cropW:$cropH"
+        if (xrMirrorKey == key) {
+            xrLookOn = true
+            xrDriver.start()
+            return
+        }
+        val left = (canvasW - cropW) / 2
+        val top = (canvasH - cropH) / 2
+        runCatching {
+            externalBackend.attach(
+                targetDisplayId, surface, surface.width, surface.height,
+                canvasW, canvasH, density, configuredMirrorStrategyOverride(), rebuild = true,
+                crop = Rect(left, top, left + cropW, top + cropH),
+            )
+        }.onFailure {
+            OperationLog.e(this, "ExternalOutput", "xr mirror failed", it)
+            return
+        }
+        xrMirrorKey = key
+        xrLookOn = true
+        xrDriver.start()
+    }
+
+    private fun syncXrLook() {
+        val output = externalOutput?.takeIf { it.mode == "external" } ?: return
+        val look = xrLookRequested()
+        if (look == xrLookOn) {
+            if (look) attachXrMirror()
+            return
+        }
+        val (panelW, panelH) = xrPanelSize()
+        if (look) {
+            output.phoneSurface.holder.removeCallback(this)
+            output.surface.holder.removeCallback(this)
+            releaseMirror()
+            surfaceView = output.surface
+            output.surface.holder.removeCallback(output)
+            output.surface.holder.addCallback(output)
+            if (phoneOwnedDisplay != null) xrOffscreenDesktop = true
+            val (canvasW, canvasH) = xrCanvasSize()
+            runCatching {
+                resizeActiveDisplay(Config(canvasW, canvasH,
+                    density, secureDisplay, showSystemDecorations), "xr look")
+            }.onFailure { OperationLog.e(this, "ExternalOutput", "xr canvas resize failed", it) }
+            attachXrMirror()
+            beginPhoneNormal()
+        } else {
+            xrOffscreenDesktop = false
+            unparkPhoneOverlay()
+            xrDriver.stop()
+            externalBackend.releaseLayer()
+            xrLookOn = false
+            xrMirrorKey = null
+            output.surface.holder.removeCallback(output)
+            output.phoneSurface.holder.removeCallback(this)
+            releaseMirror()
+            surfaceView = output.surface
+            output.surface.holder.addCallback(this)
+            runCatching {
+                resizeActiveDisplay(Config(panelW, panelH,
+                    density, secureDisplay, showSystemDecorations), "xr body-lock")
+            }.onFailure { OperationLog.e(this, "ExternalOutput", "xr panel resize failed", it) }
+            if (output.surface.holder.surface.isValid) surfaceCreated(output.surface.holder)
+            applyExternalPhoneRole(output)
+        }
     }
 
     /** Mirror and extend: the external window shows the desktop, or its part of it. */
@@ -9932,6 +10081,12 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     private fun hideExternalOutput(reason: String) {
         val output = externalOutput ?: return
         externalOutput = null
+        moe.n4tsu.dextop.xr.XrGlassesMonitor.removeSessionListener(xrSessionListener)
+        endPhoneNormal()
+        xrDriver.stop()
+        xrLookOn = false
+        xrMirrorKey = null
+        unparkPhoneOverlay()
         output.surface.holder.removeCallback(output)
         externalBackend.releaseLayer()
         if (output.mode == "external") {
@@ -9942,6 +10097,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         externalCursor = null
         if (output.mode == "external") releaseExternalPhoneRole(output)
         if (output.mode == "external") {
+            xrOffscreenDesktop = false
             if (surfaceView === output.surface) surfaceView = output.phoneSurface
             runCatching { resizeActiveDisplay(output.phoneConfig, "external display removed") }
             val phone = output.phoneSurface
@@ -9974,6 +10130,100 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     /** The laptop deck is shown for the external screen, not as a foldable's laptop half. */
     private var externalInputDeck = false
 
+    /**
+     * Look mode while the phone role is "phone" (not trackpad / mouse and keyboard).
+     *
+     * The look-mode desktop is an owned virtual display in the phone's display
+     * group. Dextop Book was focusable and touchable, so InputDispatcher set
+     * FocusedDisplayId to that display. dextop_input kept /dev/input/event8
+     * (sec_touchscreen) open and fed Dextop Virtual Touchpad, which is aimed
+     * at the same display. Gesture monitors on the phone then grew to
+     * ±69120×38880 (10× the 6912×3888 canvas). A finger became a pointer
+     * event on Book. Double-tap still woke the panel, because that path is a
+     * key (KEY_GESTURE_TYPE_WAKEUP), not a click. The built-in panel also
+     * went state OFF (layer stack -1) once KEEP_SCREEN_ON was cleared, so
+     * every later tap was only another wakeup.
+     *
+     * This hold is only that case. Touchpad role never enters it: the phone
+     * overlay, the raw reader, and Book focus stay as they were.
+     * The hold stays up after look ends while the role is still phone, so
+     * dropping back to body-lock does not hand the touchscreen to Book again.
+     * It ends when the role becomes touchpad, or the external output goes away.
+     */
+    @Volatile
+    private var phoneNormalHold = false
+    private var phoneNormalWakeLock: PowerManager.WakeLock? = null
+
+    private fun phoneRoleIsPhone(): Boolean =
+        externalDisplayPreference("external_display_phone", "phone") == "phone"
+
+    private fun beginPhoneNormal() {
+        if (!xrLookOn || !phoneRoleIsPhone() || phoneNormalHold) return
+        phoneNormalHold = true
+        parkPhoneOverlay()
+        releasePhoneTouchscreen("phone normal")
+        plasmaShell?.setPhoneTouchscreenFree(true)
+        acquirePhoneNormalWake()
+        Log.i(logTag, "phone normal: touchscreen released, book is not the pointer")
+    }
+
+    private fun endPhoneNormal() {
+        if (!phoneNormalHold) return
+        phoneNormalHold = false
+        plasmaShell?.setPhoneTouchscreenFree(false)
+        releasePhoneNormalWake()
+        Log.i(logTag, "phone normal released")
+    }
+
+    /** Closes the evdev reader and destroys Dextop Virtual Touchpad. Flags alone do not. */
+    private fun releasePhoneTouchscreen(reason: String) {
+        stopRawTouchscreenReader(reason)
+        virtualMouseReady = false
+        virtualPointerOutputObserved = false
+        privilegedInputClient.setOutputReady(false)
+        privilegedInputClient.stopEngine(reason)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun acquirePhoneNormalWake() {
+        if (phoneNormalWakeLock?.isHeld == true) return
+        val lock = getSystemService(PowerManager::class.java).newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "dextop:phone-normal",
+        )
+        lock.setReferenceCounted(false)
+        lock.acquire()
+        phoneNormalWakeLock = lock
+    }
+
+    private fun releasePhoneNormalWake() {
+        phoneNormalWakeLock?.let { if (it.isHeld) it.release() }
+        phoneNormalWakeLock = null
+    }
+
+    /** Look mode: the glasses window is the picture. The phone overlay must not draw or take taps. */
+    private fun parkPhoneOverlay() {
+        root?.routeTouchesToSurface = false
+        stopRawTouchscreenReader("xr look")
+        externalOutput?.phoneSurface?.visibility = View.GONE
+        val frame = root
+        val params = rootWindowParams
+        if (frame != null && params != null) {
+            params.width = 1
+            params.height = 1
+            params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            runCatching { windowManager?.updateViewLayout(frame, params) }
+        }
+        root?.visibility = View.GONE
+        cursorView?.visibility = View.GONE
+    }
+
+    private fun unparkPhoneOverlay() {
+        root?.visibility = View.VISIBLE
+        cursorView?.visibility = if (directTouch || virtualMouseInputActive()) View.GONE else View.VISIBLE
+    }
+
     private fun applyExternalPhoneRole(output: ExternalOutput) {
         val role = externalDisplayPreference("external_display_phone", "phone")
         if (role == externalPhoneRole) return
@@ -9982,7 +10232,10 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         output.phoneSurface.visibility = View.GONE
         if (role == "phone") {
             setPhoneFreeForExternalOutput(true)
+            if (xrLookOn) beginPhoneNormal()
         } else {
+            endPhoneNormal()
+            unparkPhoneOverlay()
             externalInputDeck = true
             setLaptopMode(true, KeyboardDeckStyle.LAPTOP)
         }
@@ -10048,6 +10301,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     private var externalStartPending = false
 
     private fun revealPhoneWindow() {
+        if (xrLookOn) return
         if (!externalStartPending) return
         externalStartPending = false
         val frame = root ?: return
@@ -12214,6 +12468,10 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
 
     private fun createDisplay(surface: Surface, width: Int, height: Int) {
         if (mirrorDisplayId >= 0 || displayCreationInProgress) return
+        if (!autoOnlySession && xrLookDesktopRequested()) {
+            createXrOffscreenDisplay(width, height)
+            return
+        }
         if (useDirectPlasmaDisplay()) {
             createDirectPhoneDisplay(surface, width, height)
             return
@@ -12241,6 +12499,68 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             displayCreationInProgress = false
             OperationLog.e(this, "MirrorService", "display creation failed", error)
             Log.e(logTag, "display creation failed", error)
+            completeStart(Result.failure(error))
+            stop()
+        }
+    }
+
+    /** World-lock and smooth-follow: the desktop must not be an overlay display. */
+    private fun xrLookDesktopRequested(): Boolean {
+        moe.n4tsu.dextop.xr.XrGlassesMonitor.onDisplaysChanged(this)
+        return xrLookRequested()
+    }
+
+    /**
+     * Owned virtual display rendered into an off-screen sink. OverlayDisplayAdapter
+     * is never asked, so the phone does not get an "Overlay #" window.
+     */
+    private fun createXrOffscreenDisplay(width: Int, height: Int) {
+        displayCreationInProgress = true
+        xrOffscreenDesktop = true
+        runCatching {
+            check(privilegedAccess.isAvailable()) { NativeStrings.text("nativeShizukuUnavailable") }
+            CapabilityProbe(this, privilegedAccess).run().forEach { (name, probe) ->
+                OperationLog.i(this, "CapabilityProbe", "$name supported=${probe.supported} detail=${probe.detail}")
+            }
+            desktopModeConfigurator.applyForCurrentDevice()
+            clearOverlayDisplayRequestTwice("before_xr_offscreen_display")
+            val platform = VirtualDisplayPlatform.inspect()
+            val service = privilegedAccess.service("display", VirtualDisplayPlatform.MANAGER_INTERFACE)
+            phoneOwnedDisplay?.attachment?.release()
+            val owned = platform.openOwned(
+                this,
+                service,
+                directDisplaySurface(),
+                targetWidth,
+                targetHeight,
+                density,
+                showSystemDecorations,
+                configureBeforePublish = { displayId ->
+                    if (desktopEnvironment.id == XIAOMI_PROFILE) applyXiaomiDesktopDensity(displayId, density)
+                },
+                publicDisplay = true,
+                name = "Dextop Desktop",
+            )
+            phoneOwnedDisplay = owned
+            val display = getSystemService(DisplayManager::class.java).getDisplay(owned.displayId)
+                ?: error(moe.n4tsu.dextop.InlineStrings.format(
+                    moe.n4tsu.dextop.localText("uiTheDirectDextopDisplay0IsUnavailable"), owned.displayId))
+            OperationLog.i(
+                this,
+                "DisplayBackend",
+                "xr desktop off phone display=${owned.displayId} ${targetWidth}x$targetHeight/$density"
+            )
+            display
+        }.onSuccess { display ->
+            attachDesktopDisplay(display, width, height)
+        }.onFailure { error ->
+            displayCreationInProgress = false
+            xrOffscreenDesktop = false
+            runCatching { phoneOwnedDisplay?.attachment?.release() }
+            phoneOwnedDisplay = null
+            closeExtendSink()
+            OperationLog.e(this, "MirrorService", "xr offscreen display failed", error)
+            Log.e(logTag, "xr offscreen display failed", error)
             completeStart(Result.failure(error))
             stop()
         }
@@ -13074,6 +13394,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     private fun releasePhoneOwnedDisplay(reason: String) {
         val owned = phoneOwnedDisplay ?: return
         phoneOwnedDisplay = null
+        xrOffscreenDesktop = false
         runCatching { owned.attachment.release() }
             .onFailure { Log.e(logTag, "direct Plasma display release failed", it) }
         closeExtendSink()
@@ -13101,6 +13422,21 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         strategyOverride: String? = null,
         rebuild: Boolean = false,
     ) {
+        if (xrLookOn) return
+        if (xrOffscreenDesktop) {
+            val owned = phoneOwnedDisplay ?: error(NativeStrings.text("nativeMirrorSurfaceUnavailable"))
+            check(owned.resize(directDisplaySurface(), targetWidth, targetHeight, density)) {
+                moe.n4tsu.dextop.localText("uiUnableToMoveTheDirectDextopDisplayOffScreen")
+            }
+            mirrorHostWidth = hostWidth
+            mirrorHostHeight = hostHeight
+            OperationLog.i(
+                this,
+                "DisplayBackend",
+                "xr desktop kept off phone ${targetWidth}x$targetHeight"
+            )
+            return
+        }
         val host = surfaceView ?: error(NativeStrings.text("nativeMirrorSurfaceUnavailable"))
         phoneOwnedDisplay?.let { owned ->
             if (phoneRegion != null) {
@@ -13415,7 +13751,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             plasmaShell?.onDisplayResized(targetWidth, targetHeight)
         }
         phoneOwnedDisplay?.takeIf { sizeChanged || densityChanged }?.let { owned ->
-            val surface = if (phoneRegion != null) directDisplaySurface()
+            val surface = if (phoneRegion != null || xrOffscreenDesktop) directDisplaySurface()
                 else surfaceView?.holder?.surface?.takeIf { it.isValid }
             // A host Surface still being created (the external screen's window just added, or
             // the phone's coming back) binds at the new size when it arrives (attachMirror);
@@ -13622,7 +13958,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     private fun scheduleRawTouchscreenTopologyRefresh(reason: String, force: Boolean = false) {
         val refreshGeneration = ++rawTouchscreenTopologyRefreshGeneration
         root?.postDelayed({
-            if (refreshGeneration != rawTouchscreenTopologyRefreshGeneration || !active) {
+            if (refreshGeneration != rawTouchscreenTopologyRefreshGeneration || !active || phoneNormalHold) {
                 return@postDelayed
             }
             if (rawTouchscreenBridgeEligible()) {
@@ -13654,7 +13990,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     ).joinToString(";")
 
     private fun startRawTouchscreenReaderIfEligible() {
-        if (!rawTouchscreenBridgeEligible()) return
+        if (phoneNormalHold || xrLookOn || !rawTouchscreenBridgeEligible()) return
         val profile = virtualPointerRegisteredProfile
         touchscreenReaderGeneration += 1
         touchscreenReaderRunning = true
@@ -14145,6 +14481,11 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         surfaceView?.holder?.removeCallback(this)
         externalOutput?.let { output ->
             externalOutput = null
+            moe.n4tsu.dextop.xr.XrGlassesMonitor.removeSessionListener(xrSessionListener)
+            endPhoneNormal()
+            xrDriver.stop()
+            xrLookOn = false
+            xrMirrorKey = null
             output.surface.holder.removeCallback(this)
             output.surface.holder.removeCallback(output)
             externalBackend.releaseLayer()

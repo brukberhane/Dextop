@@ -109,8 +109,9 @@ https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md
   Device filter includes vendor `13080`. Grant completed 2026-11-14 18:30
   Africa/Addis_Ababa after the dialog was accepted on the phone screen
   (it had opened on display 0 while that panel was off). Stationary fused
-  pose before Recenter: yaw −0.527, pitch 0.227, roll 2.711 rad. Head-turn
-  signs and the Recenter press were not captured.
+  pose before the first Recenter: yaw −0.527, pitch 0.227, roll 2.711 rad.
+  Recenter confirmed 18:50 Africa/Addis_Ababa: `providers=1`, next pose
+  near 0 on all three axes. Head-turn signs were not captured.
 
 ## Known control commands (One-series TCP, community, firmware 1.8.1)
 
