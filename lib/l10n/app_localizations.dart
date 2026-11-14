@@ -6191,6 +6191,42 @@ abstract class AppLocalizations {
   /// **'Triple monitor'**
   String get uiXrGlassesPresetTriple;
 
+  /// No description provided for @uiXrGlassesPresetWide.
+  ///
+  /// In ja, this message translates to:
+  /// **'Wide'**
+  String get uiXrGlassesPresetWide;
+
+  /// No description provided for @uiXrGlassesAdvanced.
+  ///
+  /// In ja, this message translates to:
+  /// **'Advanced'**
+  String get uiXrGlassesAdvanced;
+
+  /// No description provided for @uiXrGlassesScale.
+  ///
+  /// In ja, this message translates to:
+  /// **'Resolution'**
+  String get uiXrGlassesScale;
+
+  /// No description provided for @uiXrGlassesScale1080.
+  ///
+  /// In ja, this message translates to:
+  /// **'1080p'**
+  String get uiXrGlassesScale1080;
+
+  /// No description provided for @uiXrGlassesScale1440.
+  ///
+  /// In ja, this message translates to:
+  /// **'1440p'**
+  String get uiXrGlassesScale1440;
+
+  /// No description provided for @uiXrGlassesScale2160.
+  ///
+  /// In ja, this message translates to:
+  /// **'2160p'**
+  String get uiXrGlassesScale2160;
+
   /// No description provided for @uiXrGlassesRecenter.
   ///
   /// In ja, this message translates to:

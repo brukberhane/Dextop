@@ -47,6 +47,9 @@ internal class XrViewport {
         canvasH: Int,
         panelW: Int,
         panelH: Int,
+        windowW: Int = -1,
+        windowH: Int = -1,
+        pxPerRad: Float = -1f,
     ): XrCrop {
         val (yaw, pitch) = lead(pose, nowNanos)
         val sampleDt = last?.let { (pose.timestampNanos - it.timestampNanos) / 1_000_000_000f } ?: 0f
@@ -76,7 +79,10 @@ internal class XrViewport {
         if (mode == "body-lock") return XrCrop(0, 0, canvasW, canvasH)
         val usedYaw = if (mode == "smooth-follow") followYaw else lowYaw
         val usedPitch = if (mode == "smooth-follow") followPitch else lowPitch
-        return crop(usedYaw, usedPitch, canvasW, canvasH, panelW, panelH)
+        val cropW = if (windowW > 0) windowW else viewEdge(panelW)
+        val cropH = if (windowH > 0) windowH else viewEdge(panelH)
+        val pixels = if (pxPerRad > 0f) pxPerRad else pixelsPerRadian(panelW)
+        return crop(usedYaw, usedPitch, canvasW, canvasH, pixels, cropW, cropH)
     }
 
     private fun lead(pose: XrPose, nowNanos: Long): Pair<Float, Float> {
@@ -96,12 +102,12 @@ internal class XrViewport {
         pitch: Float,
         canvasW: Int,
         canvasH: Int,
-        panelW: Int,
-        panelH: Int,
+        pixels: Float,
+        windowW: Int,
+        windowH: Int,
     ): XrCrop {
-        val width = min(viewEdge(panelW), canvasW)
-        val height = min(viewEdge(panelH), canvasH)
-        val pixels = pixelsPerRadian(panelW)
+        val width = min(windowW, canvasW)
+        val height = min(windowH, canvasH)
         val centerX = (canvasW - width) / 2
         val centerY = (canvasH - height) / 2
         val left = centerX + (-yaw * pixels).toInt()

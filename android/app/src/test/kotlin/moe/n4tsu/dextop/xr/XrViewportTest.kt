@@ -142,5 +142,65 @@ class XrViewportTest {
         assertEquals(atSample.left, heldLate.left)
     }
 
+    @Test fun widePanClampsAtThePanelWindow() {
+        val canvasW = canvasWidth("wide", 1920)
+        val windowW = windowWidth("wide", 1920, canvasW)
+        val viewport = XrViewport()
+        val center = viewport.step("world-lock", pose(0f, 0f, 0L), 0L, canvasW, 1080, 1920, 1080, windowW, 1080)
+        val left = viewport.step("world-lock", pose(0.5f, 0.4f, 1_000_000_000L), 1_000_000_000L, canvasW, 1080, 1920, 1080, windowW, 1080)
+        assertTrue(left.left < center.left)
+        assertEquals(center.top, left.top)
+        val far = XrViewport().let { fresh ->
+            fresh.step("world-lock", pose(0f, 0f, 0L), 0L, canvasW, 1080, 1920, 1080, windowW, 1080)
+            fresh.step("world-lock", pose(1.6f, 0f, 1_000_000_000L), 1_000_000_000L, canvasW, 1080, 1920, 1080, windowW, 1080)
+        }
+        val other = XrViewport().let { fresh ->
+            fresh.step("world-lock", pose(0f, 0f, 0L), 0L, canvasW, 1080, 1920, 1080, windowW, 1080)
+            fresh.step("world-lock", pose(-1.6f, 0f, 1_000_000_000L), 1_000_000_000L, canvasW, 1080, 1920, 1080, windowW, 1080)
+        }
+        assertEquals(0, far.left)
+        assertEquals(canvasW - windowW, other.left)
+    }
+
+    @Test fun worldLockPitchesAndYawsAcrossThePoseCanvas() {
+        val canvasW = canvasWidth("single", 1920, worldLock = true)
+        val canvasH = canvasHeight("single", 1080, worldLock = true, panelW = 1920)
+        val windowW = windowWidth("single", 1920, canvasW, worldLock = true)
+        val windowH = windowHeight("single", 1080, canvasH, worldLock = true)
+        val viewport = XrViewport()
+        val center = viewport.step(
+            "world-lock", pose(0f, 0f, 0L), 0L, canvasW, canvasH, 1920, 1080, windowW, windowH,
+        )
+        val moved = viewport.step(
+            "world-lock", pose(0.5f, 0.5f, 1_000_000_000L), 1_000_000_000L,
+            canvasW, canvasH, 1920, 1080, windowW, windowH,
+        )
+        assertEquals(center.left - 960, moved.left)
+        assertEquals(center.top - 960, moved.top)
+        assertEquals(6032, center.left)
+        assertEquals(3016, center.top)
+    }
+
+    @Test fun smoothFollowOnAFullBleedCanvasDoesNotPan() {
+        val crop = XrViewport().let { viewport ->
+            viewport.step("smooth-follow", pose(0f, 0f, 0L), 0L, 1920, 1080, 1920, 1080, 1920, 1080)
+            viewport.step("smooth-follow", pose(1f, 0.5f, 1_000_000_000L), 1_000_000_000L, 1920, 1080, 1920, 1080, 1920, 1080)
+        }
+        assertEquals(0, crop.left)
+        assertEquals(0, crop.top)
+        assertEquals(1920, crop.width)
+    }
+
+    @Test fun scaledSingleDoesNotPan() {
+        val crop = XrViewport().let { viewport ->
+            viewport.step("world-lock", pose(0f, 0f, 0L), 0L, 3840, 2160, 1920, 1080, 3840, 2160)
+            viewport.step("world-lock", pose(2f, -1f, 1_000_000_000L), 1_000_000_000L, 3840, 2160, 1920, 1080, 3840, 2160)
+        }
+        assertEquals(0, crop.left)
+        assertEquals(0, crop.top)
+        assertEquals(3840, crop.width)
+        assertEquals(2160, crop.height)
+    }
+
     private fun pose(yaw: Float, pitch: Float, time: Long) = XrPose(time, yaw, pitch, 0f)
 }

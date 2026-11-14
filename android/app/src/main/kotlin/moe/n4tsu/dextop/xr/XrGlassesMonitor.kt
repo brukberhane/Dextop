@@ -94,6 +94,7 @@ internal object XrGlassesMonitor {
                 "displayName" to "",
                 "mode" to "",
                 "preset" to "",
+                "singleScale" to 1.0,
                 "usbPermission" to permission,
             )
         }
@@ -103,17 +104,18 @@ internal object XrGlassesMonitor {
             "displayName" to identity.displayName,
             "mode" to current.mode,
             "preset" to current.preset,
+            "singleScale" to current.singleScale.toDouble(),
             "usbPermission" to permission,
         )
     }
 
-    fun saveProfile(context: Context, id: String, mode: String, preset: String): Boolean {
+    fun saveProfile(context: Context, id: String, mode: String, preset: String, singleScale: Float = 1f): Boolean {
         if (id.isEmpty()) return false
         val app = context.applicationContext
         val saved = synchronized(lock) {
             val profiles = store ?: PrefsXrProfileStore(app).also { store = it }
-            if (!profiles.save(id, mode, preset)) return false
-            if (session?.id == id) profile = XrProfile(mode, preset)
+            if (!profiles.save(id, mode, preset, singleScale)) return false
+            if (session?.id == id) profile = profiles.read(id)
             true
         }
         if (saved) notifySession()

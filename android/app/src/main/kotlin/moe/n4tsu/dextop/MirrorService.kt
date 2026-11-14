@@ -3167,6 +3167,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                     plasmaShell = it
                     if (phoneNormalHold) it.setPhoneTouchscreenFree(true)
                     it.start()
+                    if (xrLookOn) applyXrZones()
                     if (carShell) carVisibleArea?.let { r -> it.setAutoViewport(r[0],r[1],r[2],r[3]) }
                 }
         }.onSuccess {
@@ -9589,6 +9590,11 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             privilegedAccess, desktopEnvironment)
     }
     private var xrLookOn = false
+    private var xrAppliedPreset: String? = null
+    private var xrAppliedScale = 1f
+    private var xrAppliedMode: String? = null
+    /** Session density before look-mode scaling. Resize writes [density], so later scales must not multiply that. */
+    private var xrBaseDensity: Int? = null
     /** Look mode draws the desktop into an off-screen surface. No Overlay # window on the phone. */
     private var xrOffscreenDesktop = false
     private var xrMirrorKey: String? = null
@@ -9671,9 +9677,10 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         val panelW = metrics.widthPixels and -2
         val panelH = metrics.heightPixels and -2
         val (width, height) = if (xrLookOn) xrCanvasSize() else panelW to panelH
+        val dpi = if (xrLookOn) xrLookDensity() else externalDensityFor(metrics)
         runCatching {
             resizeActiveDisplay(Config(width, height,
-                externalDensityFor(metrics), secureDisplay, showSystemDecorations), "display scale")
+                dpi, secureDisplay, showSystemDecorations), "display scale")
         }.onFailure { OperationLog.e(this, "ExternalOutput", "display scale change failed", it) }
     }
 
@@ -9760,15 +9767,20 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
                     val panelH = metrics.heightPixels and -2
                     val look = xrLookRequested()
                     val (width, height) = if (look) xrCanvasSize() else panelW to panelH
+                    val dpi = if (look) xrLookDensity() else externalDensityFor(metrics)
                     runCatching {
                         resizeActiveDisplay(Config(width, height,
-                            externalDensityFor(metrics), secureDisplay, showSystemDecorations), "external display")
+                            dpi, secureDisplay, showSystemDecorations), "external display")
                     }.onFailure { OperationLog.e(this, "ExternalOutput", "external resize failed", it) }
                     applyExternalPhoneRole(output)
                     moe.n4tsu.dextop.xr.XrGlassesMonitor.addSessionListener(xrSessionListener)
                     if (look) {
                         xrLookOn = true
                         attachXrMirror()
+                        applyXrZones()
+                        xrAppliedPreset = xrPreset()
+                        xrAppliedScale = xrSingleScale()
+                        xrAppliedMode = xrMode()
                         beginPhoneNormal()
                     }
                 }
@@ -9806,9 +9818,30 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         return (metrics.widthPixels and -2) to (metrics.heightPixels and -2)
     }
 
+    private fun xrMode(): String = moe.n4tsu.dextop.xr.XrGlassesMonitor.currentProfile().mode
+
+    private fun xrPreset(): String = moe.n4tsu.dextop.xr.XrGlassesMonitor.currentProfile().preset
+
+    private fun xrSingleScale(): Float = moe.n4tsu.dextop.xr.XrGlassesMonitor.currentProfile().singleScale
+
+    /** Wide and ultrawide exist only in world-lock. Other modes render single, full-bleed. */
+    private fun xrLayout(): Triple<Boolean, String, Float> {
+        val world = xrMode() == "world-lock"
+        val preset = if (world) xrPreset() else "single"
+        return Triple(world, preset, xrSingleScale())
+    }
+
+    /** Single upscale keeps the same apparent size. Wide and ultrawide stay at the session density. */
+    private fun xrLookDensity(): Int {
+        val base = xrBaseDensity ?: density.also { xrBaseDensity = it }
+        val scale = if (xrLayout().second == "single") xrSingleScale() else 1f
+        return kotlin.math.round(base * scale).toInt().coerceIn(80, 640)
+    }
+
     private fun xrCanvasSize(): Pair<Int, Int> {
         val (panelW, panelH) = xrPanelSize()
-        return moe.n4tsu.dextop.xr.canvasEdge(panelW) to moe.n4tsu.dextop.xr.canvasEdge(panelH)
+        val (world, preset, scale) = xrLayout()
+        return moe.n4tsu.dextop.xr.canvasSize(preset, panelW, panelH, scale, world)
     }
 
     private fun onExternalSurfaceReady() {
@@ -9826,8 +9859,9 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         val (canvasW, canvasH) = xrCanvasSize()
         val (panelW, panelH) = xrPanelSize()
         if (panelW <= 0 || panelH <= 0 || canvasW <= 0 || canvasH <= 0) return
-        val cropW = moe.n4tsu.dextop.xr.viewEdge(panelW).coerceAtMost(canvasW)
-        val cropH = moe.n4tsu.dextop.xr.viewEdge(panelH).coerceAtMost(canvasH)
+        val (world, preset, scale) = xrLayout()
+        val cropW = moe.n4tsu.dextop.xr.windowWidth(preset, panelW, canvasW, scale, world)
+        val cropH = moe.n4tsu.dextop.xr.windowHeight(preset, panelH, canvasH, scale, world)
         val key = "$canvasW:$canvasH:${surface.width}:${surface.height}:$cropW:$cropH"
         if (xrMirrorKey == key) {
             xrLookOn = true
@@ -9854,6 +9888,24 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     private fun syncXrLook() {
         val output = externalOutput?.takeIf { it.mode == "external" } ?: return
         val look = xrLookRequested()
+        val preset = xrPreset()
+        val scale = xrSingleScale()
+        val mode = xrMode()
+        if (look && xrLookOn && (preset != xrAppliedPreset || scale != xrAppliedScale || mode != xrAppliedMode)) {
+            val (canvasW, canvasH) = xrCanvasSize()
+            val resized = runCatching {
+                resizeActiveDisplay(Config(canvasW, canvasH,
+                    xrLookDensity(), secureDisplay, showSystemDecorations), "xr preset")
+            }.onFailure { OperationLog.e(this, "ExternalOutput", "xr preset resize failed", it) }.isSuccess
+            if (resized) {
+                attachXrMirror()
+                applyXrZones()
+                xrAppliedPreset = preset
+                xrAppliedScale = scale
+                xrAppliedMode = mode
+            }
+            return
+        }
         if (look == xrLookOn) {
             if (look) attachXrMirror()
             return
@@ -9868,13 +9920,22 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             output.surface.holder.addCallback(output)
             if (phoneOwnedDisplay != null) xrOffscreenDesktop = true
             val (canvasW, canvasH) = xrCanvasSize()
-            runCatching {
+            val resized = runCatching {
                 resizeActiveDisplay(Config(canvasW, canvasH,
-                    density, secureDisplay, showSystemDecorations), "xr look")
-            }.onFailure { OperationLog.e(this, "ExternalOutput", "xr canvas resize failed", it) }
-            attachXrMirror()
+                    xrLookDensity(), secureDisplay, showSystemDecorations), "xr look")
+            }.onFailure { OperationLog.e(this, "ExternalOutput", "xr canvas resize failed", it) }.isSuccess
+            if (resized) {
+                attachXrMirror()
+                applyXrZones()
+                xrAppliedPreset = preset
+                xrAppliedScale = scale
+                xrAppliedMode = mode
+            }
             beginPhoneNormal()
         } else {
+            val restoreDensity = xrBaseDensity ?: density
+            xrBaseDensity = null
+            forgetXrGeometry()
             xrOffscreenDesktop = false
             unparkPhoneOverlay()
             xrDriver.stop()
@@ -9888,7 +9949,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             output.surface.holder.addCallback(this)
             runCatching {
                 resizeActiveDisplay(Config(panelW, panelH,
-                    density, secureDisplay, showSystemDecorations), "xr body-lock")
+                    restoreDensity, secureDisplay, showSystemDecorations), "xr body-lock")
             }.onFailure { OperationLog.e(this, "ExternalOutput", "xr panel resize failed", it) }
             if (output.surface.holder.surface.isValid) surfaceCreated(output.surface.holder)
             applyExternalPhoneRole(output)
@@ -10078,8 +10139,42 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         plasmaShell?.setOutputs(outputs)
     }
 
+    private fun applyXrZones() {
+        val (panelW, panelH) = xrPanelSize()
+        if (panelW <= 0 || panelH <= 0) return
+        val (world, preset, scale) = xrLayout()
+        val wasPlaced = xrAppliedMode == "world-lock"
+        if (world) {
+            plasmaShell?.setOutputs(moe.n4tsu.dextop.xr.zoneRects(preset, panelW, panelH, scale, worldLock = true).map {
+                Rect(it.left, it.top, it.right, it.bottom)
+            })
+        } else if (wasPlaced) {
+            plasmaShell?.setOutputs(emptyList())
+        }
+    }
+
+    private fun forgetXrGeometry() {
+        if (xrAppliedMode == "world-lock") {
+            plasmaShell?.setOutputs(emptyList())
+        }
+        xrAppliedPreset = null
+        xrAppliedScale = 1f
+        xrAppliedMode = null
+        val base = xrBaseDensity ?: return
+        xrBaseDensity = null
+        if (base == density || targetDisplayId < 0) {
+            density = base
+            return
+        }
+        runCatching {
+            resizeActiveDisplay(Config(targetWidth, targetHeight,
+                base, secureDisplay, showSystemDecorations), "xr density restore")
+        }.onFailure { density = base }
+    }
+
     private fun hideExternalOutput(reason: String) {
         val output = externalOutput ?: return
+        forgetXrGeometry()
         externalOutput = null
         moe.n4tsu.dextop.xr.XrGlassesMonitor.removeSessionListener(xrSessionListener)
         endPhoneNormal()
@@ -14484,6 +14579,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             moe.n4tsu.dextop.xr.XrGlassesMonitor.removeSessionListener(xrSessionListener)
             endPhoneNormal()
             xrDriver.stop()
+            forgetXrGeometry()
             xrLookOn = false
             xrMirrorKey = null
             output.surface.holder.removeCallback(this)

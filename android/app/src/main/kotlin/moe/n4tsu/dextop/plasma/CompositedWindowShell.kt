@@ -2777,6 +2777,7 @@ internal abstract class CompositedWindowShell(
 
     override fun setOutputs(outputs: List<Rect>) {
         this.outputs = outputs.map(::Rect)
+        if (bareCanvasAroundOutputs() && ::root.isInitialized) root.setBackgroundColor(0xFF000000.toInt())
         if (!running || autoMode) return
         bookUi?.place(primaryOutput())
         if (bookUi == null) layoutPanel()
@@ -2791,6 +2792,15 @@ internal abstract class CompositedWindowShell(
             }
         }
         updatePanelFloat(force = true)
+    }
+
+    /** World-lock parks monitors inside a pose canvas. The rest of that canvas stays black. */
+    private fun bareCanvasAroundOutputs(): Boolean {
+        if (outputs.size > 1) return true
+        val only = outputs.singleOrNull() ?: return false
+        if (only.left > 0 || only.top > 0) return true
+        if (width <= 0 || height <= 0) return false
+        return only.right < width || only.bottom < height
     }
 
     /** [output] less the panel (or Book's bars), which only the first screen has. */
@@ -2825,8 +2835,9 @@ internal abstract class CompositedWindowShell(
         if (frame.top < area.top) frame.offset(0, area.top - frame.top)
         if (frame.top > area.bottom - titleHeight) frame.offset(0, area.bottom - titleHeight - frame.top)
         val keep = dp(64)
-        if (frame.right < keep) frame.offset(keep - frame.right, 0)
-        if (frame.left > width - keep) frame.offset(width - keep - frame.left, 0)
+        val span = if (outputs.isNotEmpty()) outputOf(frame) else Rect(0, 0, width, height)
+        if (frame.right < span.left + keep) frame.offset(span.left + keep - frame.right, 0)
+        if (frame.left > span.right - keep) frame.offset(span.right - keep - frame.left, 0)
         return frame
     }
 
@@ -4746,7 +4757,7 @@ internal abstract class CompositedWindowShell(
 
         override fun onDraw(canvas: Canvas) {
             val screens = outputs.ifEmpty { listOf(Rect(0, 0, width, height)) }
-            canvas.drawColor(if (settings.wallpaper == "system") 0xFF101418.toInt() else 0xFF000000.toInt())
+            canvas.drawColor(if (bareCanvasAroundOutputs() || settings.wallpaper != "system") 0xFF000000.toInt() else 0xFF101418.toInt())
             screens.forEach { output ->
                 val picture = picture(output.width().coerceAtLeast(1), output.height().coerceAtLeast(1)) ?: return@forEach
                 canvas.drawBitmap(picture, output.left.toFloat(), output.top.toFloat(), null)

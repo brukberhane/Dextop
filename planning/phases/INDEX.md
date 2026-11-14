@@ -17,7 +17,7 @@ see task stubs' high-level notes and `.cursor/rules/xr-glasses.mdc`
 | T03 | [Viture Pro Gen1 HID adapter](./T03-viture-hid-adapter.md) | ✅ | T02 | T04 | L5 | Pro IMU 62.8 Hz, CRC XMODEM, no SDK blob |
 | T04 | [XREAL Air 2 Pro HID pose adapter](./T04-xreal-tcp-adapter.md) | ✅ | T03 | T05 | L5 | Air IMU 991.4 Hz, timestamp ns, endpoints 0x84/0x05 |
 | T05 | [3DoF fusion + stabilization modes + head-tracked viewport](./T05-fusion-stabilization-viewport.md) | ✅ | T04 | T06 | L4 | Crop the existing mirror; no second AHRS |
-| T06 | [Geometry presets + pan + recenter](./T06-geometry-presets.md) | Pending | T05 | T07 | L6 | Single / triple (zones or drop) / ultrawide |
+| T06 | [Geometry presets + pan + recenter](./T06-geometry-presets.md) | InProgress | T05 | T07 | L6 | single / wide (2 zones) / ultrawide (3 zones) |
 | T07 | [Input routing + onboarding + profile polish](./T07-input-onboarding-polish.md) | Pending | T06 | T08 | L7 | Trackpad role; Follow/Stabilizer hint is One-series only |
 | T08 | [E2E hardware proof + generic fallback](./T08-e2e-hardware-proof.md) | Pending | T07 | — | L8 | Both glasses on hardware; unknown glasses degrade |
 
@@ -52,3 +52,4 @@ feature only, built on the current display stack.
 | 2026-11-14 17:45 Africa/Addis_Ababa | T03 | /task-3-complete | InProgress | ✅ |
 | 2026-11-14 18:38 Africa/Addis_Ababa | T04 | /task-3-complete | InProgress | ✅ |
 | 2026-11-14 21:35 Africa/Addis_Ababa | T05 | /task-3-complete | InProgress | ✅ |
+| 2026-11-14 21:50 Africa/Addis_Ababa | T06 | /task-2-execute started | Pending | InProgress |

@@ -18,6 +18,19 @@ class XrGlassesProfilesTest {
         assertEquals(XrProfile.default, store.read("xreal"))
     }
 
+    @Test fun oldPresetNamesMigrateOnce() {
+        assertEquals("wide", migrateStoredPreset("ultrawide", 1))
+        assertEquals("ultrawide", migrateStoredPreset("triple", 1))
+        assertEquals("ultrawide", migrateStoredPreset("ultrawide", XR_PRESET_GENERATION))
+    }
+
+    @Test fun singleScaleRoundTripClampsToAStep() {
+        val store = MemoryXrProfileStore()
+        assertTrue(store.save("xreal", "world-lock", "single", 1.4f))
+        assertEquals(nearestSingleScale(4f / 3f), store.read("xreal").singleScale)
+        assertEquals(XrProfile.default, store.read("viture-pro"))
+    }
+
     @Test fun unknownModeIsRejected() {
         val store = MemoryXrProfileStore()
         assertFalse(store.save("viture-pro", "pinned", "single"))

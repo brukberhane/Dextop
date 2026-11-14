@@ -73,7 +73,17 @@ internal class XrViewportDriver(
             val (canvasW, canvasH) = canvas()
             val (panelW, panelH) = panel()
             if (canvasW > 0 && panelW > 0) {
-                val crop = viewport.step(mode, pose, System.nanoTime(), canvasW, canvasH, panelW, panelH)
+                val current = profile()
+                val world = mode == "world-lock"
+                val preset = if (world) current.preset else "single"
+                val scale = current.singleScale
+                val px = (if (preset == "single") scaledPanel(panelW, scale) else panelW).toFloat()
+                val crop = viewport.step(
+                    mode, pose, System.nanoTime(), canvasW, canvasH, panelW, panelH,
+                    windowWidth(preset, panelW, canvasW, scale, world),
+                    windowHeight(preset, panelH, canvasH, scale, world),
+                    px,
+                )
                 if (!apply(crop) && !cropWarned) {
                     cropWarned = true
                     Log.w(TAG, "updateCrop failed")

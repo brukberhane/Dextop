@@ -13,10 +13,8 @@ https://github.com/wheaney/decky-xRGaming
 
 1. **Three stabilization modes**: body-lock (stabilization off), smooth-follow
    (damped), world-lock (pinned; look around). Recenter action in all modes.
-2. **Geometry presets, all 2D**: Single 1920×1080; Triple monitor 5760×1080
-   (three discrete 1920×1080 zones, shell-enforced, visible gaps, farther
-   apparent distance, world-locked); Ultrawide 3840×1080 (world-locked).
-   Pan = head yaw/pitch clamped to canvas bounds.
+2. **Geometry presets, all 2D**: names are single / wide / ultrawide.
+   Sizes below are the grill sketch. Current geometry supersedes them.
 3. **Triple-monitor escalation rule**: if zone enforcement in
    `CompositedWindowShell` proves too invasive during planning, DROP the
    triple preset and ship ultrawide — never silently degrade.
@@ -61,8 +59,10 @@ link) are present, any `xreal`/`nreal` display name wins the tie; otherwise
 keep the Viture id.
 
 Profiles: SharedPreferences name `dextop_xr`, keys `mode.<id>` /
-`preset.<id>`. Modes `body-lock`|`smooth-follow`|`world-lock`; presets
-`single`|`ultrawide`|`triple`. Auto-apply = load into the in-memory session on
+`preset.<id>` / `single_scale.<id>`. Modes `body-lock`|`smooth-follow`|`world-lock`;
+presets `single`|`wide`|`ultrawide`. A stored `ultrawide` from before the rename
+is wide, and a stored `triple` is ultrawide, once per prefs generation.
+Auto-apply = load into the in-memory session on
 identity change even if the settings card is closed.
 
 USB permission for Viture HID uses action
@@ -90,6 +90,24 @@ Flutter channel methods on `app.freedextop/display`: `xrGlassesState`,
 - Mode switches (2D↔SBS, refresh) on the glasses cause HPD/EDID churn —
   Dextop does not toggle them (2D only).
 
+## Current geometry
+
+px/rad = lens width (the single-scale step when the preset is single). That
+defines the lens as 1 radian wide. It is not a measured FOV.
+
+World-lock, every preset: the framebuffer covers yaw ±180° and pitch ±90°
+plus one lens, so the crop still fills the lens at the pose limit. 1080p is
+13984×7112. 1440p is 18644×9482. 2160p is 27966×14224. Monitors are rectangles
+on that canvas, centered as a group. Pose 0 looks at the center. The rest is
+black. Wide is two panel-sized zones. Ultrawide is three. Single is one zone
+at the chosen scale. This buffer is the world-lock performance limit.
+
+Body-lock and smooth-follow: single only. Canvas equals the window, so the
+picture does not pan and the pose buffer is not allocated. Wide and ultrawide
+are not offered in those modes.
+
+<!-- last-verified: 2026-11 -->
+
 ## Symptom / cause / fix skeleton
 
 | Symptom | Cause | Fix |
@@ -98,7 +116,8 @@ Flutter channel methods on `app.freedextop/display`: `xrGlassesState`,
 | Screen drifts slowly over minutes | IMU yaw drift uncorrected | Recenter, plus a stationary gyro-bias estimate. Air mag is ignored, so do not add a magnetometer fusion to chase this row |
 | Panning feels jittery | Raw pose fed to crop without smoothing | Low-pass pose before crop; tune damping; re-test at 60 Hz |
 | Look-around shows black past canvas edge | Crop clamped but offset not | Clamp viewport offset to canvas bounds minus the visible window |
-| Desktop feels huge. Head turns far left, right, up, and down to see all of it | Look mode lays the desktop out at the canvas. The glasses show a 1.6× panel window of that canvas, scaled into the lens. One radian of slack sits past the window on each side (~57° of yaw, less pitch) | Intended for the temporary canvas. A still crop that never moves is a different bug. Recenter puts pose 0 on the middle of the window. Named sizes replace this canvas |
+| World-lock stutters, the display resize fails, or memory climbs | World-lock allocates a framebuffer for the full pose (yaw ±180°, pitch ±90°) plus one lens. 1080p is 13984×7112. Single upscale multiplies it | Expected cost of world-lock. Body-lock and smooth-follow keep a canvas the same size as the window. Do not build the pose canvas for those modes |
+| Body-lock or smooth-follow stays glued to the head | Those modes show the whole single desktop. Wide and ultrawide exist only in world-lock | Intended. World-lock is the mode that parks the monitors on the pose canvas |
 | HID reader dies about 1s after open, or the next submit throws "currently queued" | `UsbDeviceConnection.requestWait(timeout)` throws and leaves the UsbRequest queued | Catch the timeout. Do not clear or requeue. Wait again on that request. |
 | Interrupt OUT write succeeds and the IN endpoint stays empty | Interrupt IN read went through bulkTransfer | Read interrupt IN with UsbRequest. bulkTransfer is fine for interrupt OUT. |
 | Next plug cannot reclaim the HID interface | Connection closed while a request wait was still in flight | Cancel the request, join the reader, then release and close. |

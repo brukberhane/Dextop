@@ -737,11 +737,14 @@ open class MainActivity : FlutterActivity() {
                 }
                 "xrGlassesState" -> result.success(moe.n4tsu.dextop.xr.XrGlassesMonitor.snapshot(this))
                 "setXrGlassesProfile" -> {
-                    val saved = moe.n4tsu.dextop.xr.XrGlassesMonitor.saveProfile(
+                    val rawScale = call.argument<Double>("singleScale")
+                    val scaleOk = rawScale == null || (rawScale.isFinite() && rawScale > 0.0)
+                    val saved = scaleOk && moe.n4tsu.dextop.xr.XrGlassesMonitor.saveProfile(
                         this,
                         call.argument<String>("id").orEmpty(),
                         call.argument<String>("mode").orEmpty(),
                         call.argument<String>("preset").orEmpty(),
+                        rawScale?.toFloat() ?: 1f,
                     )
                     if (!saved) result.error("bad_profile", "Unknown XR profile", null)
                     else result.success(moe.n4tsu.dextop.xr.XrGlassesMonitor.snapshot(this))

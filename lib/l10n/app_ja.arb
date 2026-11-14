@@ -1059,6 +1059,12 @@
   "uiXrGlassesPresetSingle": "Single screen",
   "uiXrGlassesPresetUltrawide": "Ultrawide",
   "uiXrGlassesPresetTriple": "Triple monitor",
+  "uiXrGlassesPresetWide": "Wide",
+  "uiXrGlassesAdvanced": "Advanced",
+  "uiXrGlassesScale": "Resolution",
+  "uiXrGlassesScale1080": "1080p",
+  "uiXrGlassesScale1440": "1440p",
+  "uiXrGlassesScale2160": "2160p",
   "uiXrGlassesRecenter": "Recenter",
   "uiXrGlassesUsbNeeded": "Allow USB access so stabilization can use the glasses sensors"
 }

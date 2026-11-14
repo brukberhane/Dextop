@@ -405,11 +405,13 @@ class NativeBridge {
     required String id,
     required String mode,
     required String preset,
+    double singleScale = 1,
   }) async =>
       await channel.invokeMapMethod<String, dynamic>('setXrGlassesProfile', {
         'id': id,
         'mode': mode,
         'preset': preset,
+        'singleScale': singleScale,
       }) ??
       {};
 

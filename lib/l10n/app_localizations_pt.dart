@@ -3339,6 +3339,24 @@ class AppLocalizationsPt extends AppLocalizations {
   String get uiXrGlassesPresetTriple => 'Triple monitor';
 
   @override
+  String get uiXrGlassesPresetWide => 'Wide';
+
+  @override
+  String get uiXrGlassesAdvanced => 'Advanced';
+
+  @override
+  String get uiXrGlassesScale => 'Resolution';
+
+  @override
+  String get uiXrGlassesScale1080 => '1080p';
+
+  @override
+  String get uiXrGlassesScale1440 => '1440p';
+
+  @override
+  String get uiXrGlassesScale2160 => '2160p';
+
+  @override
   String get uiXrGlassesRecenter => 'Recenter';
 
   @override
@@ -6677,6 +6695,24 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get uiXrGlassesPresetTriple => 'Triple monitor';
+
+  @override
+  String get uiXrGlassesPresetWide => 'Wide';
+
+  @override
+  String get uiXrGlassesAdvanced => 'Advanced';
+
+  @override
+  String get uiXrGlassesScale => 'Resolution';
+
+  @override
+  String get uiXrGlassesScale1080 => '1080p';
+
+  @override
+  String get uiXrGlassesScale1440 => '1440p';
+
+  @override
+  String get uiXrGlassesScale2160 => '2160p';
 
   @override
   String get uiXrGlassesRecenter => 'Recenter';
