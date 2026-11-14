@@ -398,6 +398,27 @@ class NativeBridge {
       }) ??
       'failed';
 
+  Future<Map<String, dynamic>> xrGlassesState() async =>
+      await channel.invokeMapMethod<String, dynamic>('xrGlassesState') ?? {};
+
+  Future<Map<String, dynamic>> setXrGlassesProfile({
+    required String id,
+    required String mode,
+    required String preset,
+  }) async =>
+      await channel.invokeMapMethod<String, dynamic>('setXrGlassesProfile', {
+        'id': id,
+        'mode': mode,
+        'preset': preset,
+      }) ??
+      {};
+
+  Future<void> xrGlassesRecenter() => channel.invokeMethod('xrGlassesRecenter');
+
+  Future<Map<String, dynamic>> xrGlassesRequestUsbPermission() async =>
+      await channel.invokeMapMethod<String, dynamic>('xrGlassesRequestUsbPermission') ??
+      {};
+
   /// Sets one screen's scale (percent, 100 = recommended) on the extended desktop.
   Future<void> setExtendedDisplayScale(int displayId, int percent) =>
       channel.invokeMethod('setExtendedDisplayScale', {

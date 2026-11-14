@@ -2111,6 +2111,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
             } ?: Log.i(logTag, "hinge-angle sensor unavailable")
         }
         getSystemService(DisplayManager::class.java).registerDisplayListener(displayListener, null)
+        moe.n4tsu.dextop.xr.XrGlassesMonitor.start(this)
         val externalState = externalDisplayDetector.snapshot()
         knownPhysicalExternalDisplayIds = externalState.displayIds.toSet()
         physicalExternalDisplayConnected = physicalInputRoutingSupported && externalState.connected
@@ -2783,6 +2784,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
         inputManager?.unregisterInputDeviceListener(inputDeviceListener)
         sensorManager?.unregisterListener(hingeListener)
         getSystemService(DisplayManager::class.java).unregisterDisplayListener(displayListener)
+        moe.n4tsu.dextop.xr.XrGlassesMonitor.stop(this)
         inputManager = null
         sensorManager = null
         screenReceiverRegistered = false
@@ -10057,6 +10059,7 @@ class MirrorService : AccessibilityService(), SurfaceHolder.Callback {
     }
 
     private fun refreshExternalDisplayState() {
+        moe.n4tsu.dextop.xr.XrGlassesMonitor.onDisplaysChanged(this)
         root?.post {
             externalOutput?.let { output ->
                 if (getSystemService(DisplayManager::class.java).getDisplay(output.displayId) == null) hideExternalOutput("unplugged")

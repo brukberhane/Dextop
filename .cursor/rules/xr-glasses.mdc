@@ -47,6 +47,35 @@ Pose types and the provider seam live in Kotlin package
 Production registers nothing until a device adapter task. Registry tests call
 `XrPoseProviders.clearForTests()`.
 
+## Detection + session (T02+)
+
+Identity ids: `viture-pro` (VID `0x35CA` + PID `0x101D`, or a `viture` display
+name), `viture` (other `0x35CA` PID), `xreal` (link host starts with
+`169.254.2.`, or an `xreal`/`nreal` display name). Family id is `xreal`, not
+`xreal-one` — One vs Air stays unconfirmed until hardware.
+
+USB beats name. When both a Viture USB device and an XREAL link are present,
+any `xreal`/`nreal` display name wins the tie; otherwise keep the Viture id.
+
+Profiles: SharedPreferences name `dextop_xr`, keys `mode.<id>` /
+`preset.<id>`. Modes `body-lock`|`smooth-follow`|`world-lock`; presets
+`single`|`ultrawide`|`triple`. Auto-apply = load into the in-memory session on
+identity change even if the settings card is closed.
+
+USB permission for Viture HID uses action
+`moe.n4tsu.dextop.xr.USB_PERMISSION` (separate from Linux USB). A
+`USB_DEVICE_ATTACHED` device-filter meta-data entry is ignored unless the
+activity also declares a matching intent-filter — that filter can foreground
+`MainActivity` on plug-in. Recording that a permission dialog was shown is not
+the same as granted; never re-ask on a poll loop — only on an explicit UI
+action after clearing still-denied device ids.
+
+Glasses session refresh on display hotplug must not depend on the overlay /
+root view existing; hotplug can land with no overlay.
+
+Flutter channel methods on `app.freedextop/display`: `xrGlassesState`,
+`setXrGlassesProfile`, `xrGlassesRecenter`, `xrGlassesRequestUsbPermission`.
+
 ## Invariants
 
 - Pose providers stream **3DoF orientation** (yaw/pitch/roll or quaternion);

@@ -3287,4 +3287,38 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get androidDisplayTileLabel => 'Экран Dextop';
+
+  @override
+  String get uiXrGlassesTitle => 'XR glasses';
+
+  @override
+  String get uiXrGlassesStabilization => 'Stabilization';
+
+  @override
+  String get uiXrGlassesBodyLock => 'Body lock';
+
+  @override
+  String get uiXrGlassesSmoothFollow => 'Smooth follow';
+
+  @override
+  String get uiXrGlassesWorldLock => 'World lock';
+
+  @override
+  String get uiXrGlassesGeometry => 'Display size';
+
+  @override
+  String get uiXrGlassesPresetSingle => 'Single screen';
+
+  @override
+  String get uiXrGlassesPresetUltrawide => 'Ultrawide';
+
+  @override
+  String get uiXrGlassesPresetTriple => 'Triple monitor';
+
+  @override
+  String get uiXrGlassesRecenter => 'Recenter';
+
+  @override
+  String get uiXrGlassesUsbNeeded =>
+      'Allow USB access so stabilization can use the glasses sensors';
 }

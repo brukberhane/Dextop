@@ -1049,5 +1049,16 @@
   },
   "nativeShortcutStartDisplayLong": "Dextop の仮想ディスプレイを起動または停止します",
   "nativeShortcutStartDisplay": "Dextop を起動",
-  "androidDisplayTileLabel": "Dextopディスプレイ"
+  "androidDisplayTileLabel": "Dextopディスプレイ",
+  "uiXrGlassesTitle": "XR glasses",
+  "uiXrGlassesStabilization": "Stabilization",
+  "uiXrGlassesBodyLock": "Body lock",
+  "uiXrGlassesSmoothFollow": "Smooth follow",
+  "uiXrGlassesWorldLock": "World lock",
+  "uiXrGlassesGeometry": "Display size",
+  "uiXrGlassesPresetSingle": "Single screen",
+  "uiXrGlassesPresetUltrawide": "Ultrawide",
+  "uiXrGlassesPresetTriple": "Triple monitor",
+  "uiXrGlassesRecenter": "Recenter",
+  "uiXrGlassesUsbNeeded": "Allow USB access so stabilization can use the glasses sensors"
 }

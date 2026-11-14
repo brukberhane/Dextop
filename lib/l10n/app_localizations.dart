@@ -6136,6 +6136,72 @@ abstract class AppLocalizations {
   /// In ja, this message translates to:
   /// **'Dextopディスプレイ'**
   String get androidDisplayTileLabel;
+
+  /// No description provided for @uiXrGlassesTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'XR glasses'**
+  String get uiXrGlassesTitle;
+
+  /// No description provided for @uiXrGlassesStabilization.
+  ///
+  /// In ja, this message translates to:
+  /// **'Stabilization'**
+  String get uiXrGlassesStabilization;
+
+  /// No description provided for @uiXrGlassesBodyLock.
+  ///
+  /// In ja, this message translates to:
+  /// **'Body lock'**
+  String get uiXrGlassesBodyLock;
+
+  /// No description provided for @uiXrGlassesSmoothFollow.
+  ///
+  /// In ja, this message translates to:
+  /// **'Smooth follow'**
+  String get uiXrGlassesSmoothFollow;
+
+  /// No description provided for @uiXrGlassesWorldLock.
+  ///
+  /// In ja, this message translates to:
+  /// **'World lock'**
+  String get uiXrGlassesWorldLock;
+
+  /// No description provided for @uiXrGlassesGeometry.
+  ///
+  /// In ja, this message translates to:
+  /// **'Display size'**
+  String get uiXrGlassesGeometry;
+
+  /// No description provided for @uiXrGlassesPresetSingle.
+  ///
+  /// In ja, this message translates to:
+  /// **'Single screen'**
+  String get uiXrGlassesPresetSingle;
+
+  /// No description provided for @uiXrGlassesPresetUltrawide.
+  ///
+  /// In ja, this message translates to:
+  /// **'Ultrawide'**
+  String get uiXrGlassesPresetUltrawide;
+
+  /// No description provided for @uiXrGlassesPresetTriple.
+  ///
+  /// In ja, this message translates to:
+  /// **'Triple monitor'**
+  String get uiXrGlassesPresetTriple;
+
+  /// No description provided for @uiXrGlassesRecenter.
+  ///
+  /// In ja, this message translates to:
+  /// **'Recenter'**
+  String get uiXrGlassesRecenter;
+
+  /// No description provided for @uiXrGlassesUsbNeeded.
+  ///
+  /// In ja, this message translates to:
+  /// **'Allow USB access so stabilization can use the glasses sensors'**
+  String get uiXrGlassesUsbNeeded;
 }
 
 class _AppLocalizationsDelegate

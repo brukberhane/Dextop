@@ -1025,5 +1025,16 @@
   },
   "nativeShortcutStartDisplayLong": "启动或停止 Dextop 虚拟显示器",
   "nativeShortcutStartDisplay": "启动 Dextop",
-  "androidDisplayTileLabel": "Dextop 显示器"
+  "androidDisplayTileLabel": "Dextop 显示器",
+  "uiXrGlassesTitle": "XR glasses",
+  "uiXrGlassesStabilization": "Stabilization",
+  "uiXrGlassesBodyLock": "Body lock",
+  "uiXrGlassesSmoothFollow": "Smooth follow",
+  "uiXrGlassesWorldLock": "World lock",
+  "uiXrGlassesGeometry": "Display size",
+  "uiXrGlassesPresetSingle": "Single screen",
+  "uiXrGlassesPresetUltrawide": "Ultrawide",
+  "uiXrGlassesPresetTriple": "Triple monitor",
+  "uiXrGlassesRecenter": "Recenter",
+  "uiXrGlassesUsbNeeded": "Allow USB access so stabilization can use the glasses sensors"
 }

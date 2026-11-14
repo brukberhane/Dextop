@@ -1025,5 +1025,16 @@
   },
   "nativeShortcutStartDisplayLong": "Iniciar ou parar a tela virtual do Dextop",
   "nativeShortcutStartDisplay": "Iniciar Dextop",
-  "androidDisplayTileLabel": "Tela Dextop"
+  "androidDisplayTileLabel": "Tela Dextop",
+  "uiXrGlassesTitle": "XR glasses",
+  "uiXrGlassesStabilization": "Stabilization",
+  "uiXrGlassesBodyLock": "Body lock",
+  "uiXrGlassesSmoothFollow": "Smooth follow",
+  "uiXrGlassesWorldLock": "World lock",
+  "uiXrGlassesGeometry": "Display size",
+  "uiXrGlassesPresetSingle": "Single screen",
+  "uiXrGlassesPresetUltrawide": "Ultrawide",
+  "uiXrGlassesPresetTriple": "Triple monitor",
+  "uiXrGlassesRecenter": "Recenter",
+  "uiXrGlassesUsbNeeded": "Allow USB access so stabilization can use the glasses sensors"
 }

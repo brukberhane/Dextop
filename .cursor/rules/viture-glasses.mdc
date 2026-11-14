@@ -19,7 +19,10 @@ https://www.viture.com/developer/glasses-sdk/glasses (official SDK — proprieta
   (~40°H × 23°V conservative), ~42 ppd.
 - **No usable built-in 3DoF on Pro** — stabilization is always host-side.
 - Android: video needs no permission; IMU/HID needs `UsbManager` runtime
-  permission (user dialog or `device_filter.xml` vendor-id 13770).
+  permission (user dialog or `device_filter.xml` vendor-id 13770). The XR
+  permission broadcast action is `moe.n4tsu.dextop.xr.USB_PERMISSION` — do not
+  reuse the Linux USB permission action. A dismissed dialog stays denied until
+  an explicit UI re-request; do not ask again from a poll loop.
 
 ## Protocol notes (Gen1, community-documented)
 

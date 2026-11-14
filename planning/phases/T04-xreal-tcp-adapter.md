@@ -105,4 +105,16 @@ for mode heuristics) — never toggles SBS.
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+From T02 close-out (2026-11-14):
+
+- Family identity id is `xreal` (not `xreal-one`). Link heuristic: any
+  `LinkAddress` host starting with `169.254.2.`. Name heuristic: display name
+  contains `xreal` or `nreal`. One vs Air still unverified — first T04 action.
+- When both Viture USB and an XREAL link are present, any xreal/nreal display
+  name wins the tie; otherwise Viture wins. USB still beats name alone.
+- No USB permission dialog for XREAL TCP. Profiles use the same `dextop_xr`
+  store under key `mode.xreal` / `preset.xreal`.
+- Recenter is host-side via the registered `XrPoseProvider` (card already
+  calls the registry). Do not send glasses-side Anchor/recenter APIs.
+- Channel methods already exist: `xrGlassesState`, `setXrGlassesProfile`,
+  `xrGlassesRecenter`. Onboarding Follow/Stabilizer hint stays T07.

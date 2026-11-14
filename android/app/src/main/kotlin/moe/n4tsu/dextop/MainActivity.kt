@@ -735,6 +735,22 @@ open class MainActivity : FlutterActivity() {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(call.argument<String>("url"))))
                     result.success(null)
                 }
+                "xrGlassesState" -> result.success(moe.n4tsu.dextop.xr.XrGlassesMonitor.snapshot(this))
+                "setXrGlassesProfile" -> {
+                    val saved = moe.n4tsu.dextop.xr.XrGlassesMonitor.saveProfile(
+                        this,
+                        call.argument<String>("id").orEmpty(),
+                        call.argument<String>("mode").orEmpty(),
+                        call.argument<String>("preset").orEmpty(),
+                    )
+                    if (!saved) result.error("bad_profile", "Unknown XR profile", null)
+                    else result.success(moe.n4tsu.dextop.xr.XrGlassesMonitor.snapshot(this))
+                }
+                "xrGlassesRecenter" -> result.success(moe.n4tsu.dextop.xr.XrGlassesMonitor.recenter())
+                "xrGlassesRequestUsbPermission" -> {
+                    moe.n4tsu.dextop.xr.XrGlassesMonitor.requestUsbPermission(this)
+                    result.success(moe.n4tsu.dextop.xr.XrGlassesMonitor.snapshot(this))
+                }
                 else -> result.notImplemented()
             }
         }

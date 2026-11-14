@@ -150,7 +150,12 @@ class DisplaySettingsPage extends StatelessWidget {
     body: DisplayTopologyEditor(
       bridge: bridge,
       showSettingsHeader: true,
-      belowArrangement: ExternalDisplayModeCard(bridge: bridge),
+      belowArrangement: Column(
+        children: [
+          ExternalDisplayModeCard(bridge: bridge),
+          XrGlassesSettingsCard(bridge: bridge),
+        ],
+      ),
     ),
   );
 }

@@ -109,4 +109,18 @@ implementation only.
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+From T02 close-out (2026-11-14):
+
+- Glasses identity for Pro is `viture-pro` (VID `0x35CA` + PID `0x101D`). Other
+  Viture PIDs map to `viture`. Detection + USB permission already live in
+  `XrGlassesMonitor`; T03 only opens HID after permission `granted`.
+- Permission broadcast action: `moe.n4tsu.dextop.xr.USB_PERMISSION` (not the
+  Linux USB action). Re-ask path: channel `xrGlassesRequestUsbPermission`.
+- `MainActivity` declares `USB_DEVICE_ATTACHED` + `@xml/xr_usb_device_filter`
+  (vendor-id 13770). That filter can bring the phone activity forward on
+  plug-in — do not add a second activity or put the filter on DesktopActivity.
+- Profiles prefs name `dextop_xr`. Recenter already fans out via
+  `XrPoseProviders.all().forEach { it.recenter() }` — register the Viture
+  provider into that registry.
+- Pose contract: origin-relative, unwrapped continuous Euler; yaw+ = head left,
+  pitch+ = up, roll+ = roll right (see T01 / `xr-glasses.mdc`).
