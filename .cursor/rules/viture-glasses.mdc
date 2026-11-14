@@ -1,0 +1,54 @@
+# Viture Glasses — Gen1 HID protocol (Pro)
+
+Applies when touching the Viture adapter: USB device detection, IMU pose
+stream, control commands (recenter, brightness, display mode).
+
+**Docs (if stuck):** https://github.com/bfvogel/viture-webxr-extension/blob/main/VITURE_PROTOCOL.md (Gen1 HID protocol write-up, works through Pro) ·
+https://github.com/wheaney/XRLinuxDriver (protocol constants, display modes) ·
+https://github.com/Droid-Deck/DroidDeck/pull/1115 (SDK-free 3DoF virtual screen on Android — prior art) ·
+https://github.com/elasticjava/viture-v2/blob/master/PROTOCOL.md (Gen2; reference only — Pro is Gen1) ·
+https://www.viture.com/developer/glasses-sdk/glasses (official SDK — proprietary, do NOT vendor)
+
+## Device facts
+
+- Composite USB device on the same USB-C link as DP video.
+  VID **0x35CA**, Viture Pro PID **0x101D**. Several HID interfaces — dedupe,
+  IMU and MCU control are separate interfaces.
+- Viture Pro: 1080p/eye, 2D modes 1920×1080 @ 60/90/120 (host-dependent),
+  SBS 3840×1080 (we never drive SBS — 2D only). FOV ≈ 46° diagonal
+  (~40°H × 23°V conservative), ~42 ppd.
+- **No usable built-in 3DoF on Pro** — stabilization is always host-side.
+- Android: video needs no permission; IMU/HID needs `UsbManager` runtime
+  permission (user dialog or `device_filter.xml` vendor-id 13770).
+
+## Protocol notes (Gen1, community-documented)
+
+- 64-byte HID reports, CRC-16 over the payload. **Framing discrepancy in the
+  wild**: some docs say CRC-16/XMODEM, others measure CRC-16/CCITT-FALSE
+  (poly 0x1021, init 0xFFFF) — test both on hardware before committing.
+- Pose: enable IMU stream with command `0x15`; unsolicited `0xFFFC` reports
+  carry big-endian float32 Euler angles at offset 18.
+- Control (MCU interface): recenter command id `0x30`; display mode set
+  `0x0124` (values 0x31 1080p60, 0x32 SBS, 0x33 90 Hz, 0x34 120 Hz — written
+  twice, little-endian; read-back unreliable, current mode via `0x0142`);
+  brightness `0x0122` (0–8). Commands ride the MCU interface, not the IMU one.
+- EDID changes on mode switches (HPD low/high) — some phones keep stale DP
+  state → black screen or 640×480. Treat mode switches as disconnect/reconnect.
+
+## Invariants
+
+- Never vendor the official `libglasses.so` / SDK zip — proprietary, GPL-incompatible.
+- Never toggle 2D/SBS or refresh from Dextop (decision: 2D only).
+- Pose arrives at ~120–500 Hz; fusion must tolerate gaps (sample rate not
+  officially documented — measure on hardware).
+
+## Symptom / cause / fix skeleton
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| `0xFFFC` reports stop after a minute | IMU enable handshake not retried after interface re-open | Re-send `0x15` on USB re-attach; watch for interface claim conflicts |
+| Commands ignored | Sent on IMU interface instead of MCU interface | Route control to MCU HID interface |
+| CRC rejected on some units | XMODEM vs CCITT-FALSE framing variance | Detect per device; log raw frames on first contact |
+| Black screen after refresh-rate change | Stale DP state across HPD/EDID change | Treat as reconnect; re-attach mirror on DisplayListener event |
+
+<!-- last-verified: 2026-11 -->

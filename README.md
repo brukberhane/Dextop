@@ -15,6 +15,23 @@
 
 Dextop is an open-source Android app that creates a virtual display and provides a desktop-like workspace using only a smartphone. Dextop 1.5.0 and later include a built-in privileged access runtime, which works with Android system services to control app launching, window placement, touch input, orientation, and related desktop behavior.
 
+## Table of Contents
+
+- [Community and feedback](#community-and-feedback)
+- [Screenshots and demo](#screenshots-and-demo)
+- [Features](#features)
+- [Compatibility](#compatibility)
+- [System requirements](#system-requirements)
+- [Installation](#installation)
+- [Linux](#linux)
+- [Android Auto quick start](#android-auto-quick-start)
+- [🧭 Development](#-development)
+- [📚 Dependencies & docs](#-dependencies--docs)
+- [🔁 Building with Turboplan](#-building-with-turboplan)
+- [Diagnostics](#diagnostics)
+- [Device reports](#device-reports)
+- [License](#license)
+
 ## Community and feedback
 
 Join the official Discord server: [Join here](https://discord.com/invite/444YG3srK)
@@ -207,18 +224,57 @@ Dextop provides two Android Auto entries with different platform requirements:
 
 Android Auto controls whether a sideloaded parked app appears on a particular head unit. The default compatibility mode may show the Auto virtual-display overlay on the phone; an experimental hidden-display mode is available under **Dextop → Settings → Auto**. See the [Android Auto wiki](https://github.com/NarYuki/Dextop/wiki/Android-Auto) for installation details, display modes, gestures, controls, limitations, DHU testing, and troubleshooting.
 
-## Development
+## 🧭 Development
 
 ```sh
 git clone https://github.com/NarYuki/Dextop.git
 cd Dextop
 flutter pub get
-flutter analyze
-flutter test
-flutter build apk --debug
+make verify        # analyze + test + build
+make install-hooks # once per clone: lefthook pre-commit -> make verify
+flutter run        # on a connected device
 ```
 
 To contribute support for another device, read [Adding support for a device](docs/ADDING_DEVICE_SUPPORT.en.md). The Japanese guide is [available here](docs/ADDING_DEVICE_SUPPORT.md).
+
+### Repo map
+
+| Path | For |
+| ---- | --- |
+| [`README.md`](README.md) | 👤 Humans (this file) |
+| [`.cursor/rules/`](.cursor/rules/) | 📜 Conventions for coding agents (hub + domain spokes) |
+| [`.cursor/skills/`](.cursor/skills/) | 🧩 Invocable plan / execute / complete / … workflows |
+| [`planning/phases/`](planning/phases/) | 🗂️ Feature phase sequence of record ([INDEX](planning/phases/INDEX.md)) |
+
+## 📚 Dependencies & docs
+
+Human-facing summary of the major frameworks and device APIs. Coding agents get
+detail in the matching `.cursor/rules/*.mdc` spokes — keep both in sync.
+
+| Dependency | Role | Docs | Agent rules |
+| ---------- | ---- | ---- | ----------- |
+| Flutter / Dart | UI + settings layer | https://docs.flutter.dev | [`.cursor/rules/flutter-dart.mdc`](.cursor/rules/flutter-dart.mdc) |
+| Android display APIs (DisplayManager, SurfaceControl, virtual displays) | Core desktop pipeline | https://developer.android.com/reference/android/hardware/display/DisplayManager | [`.cursor/rules/display-stack.mdc`](.cursor/rules/display-stack.mdc) |
+| Viture glasses Gen1 HID protocol | XR glasses pose/adapter (Viture Pro) | https://github.com/bfvogel/viture-webxr-extension | [`.cursor/rules/viture-glasses.mdc`](.cursor/rules/viture-glasses.mdc) |
+| XREAL One TCP protocol | XR glasses pose/adapter (XREAL One) | https://github.com/Skarian/one-xr | [`.cursor/rules/xreal-glasses.mdc`](.cursor/rules/xreal-glasses.mdc) |
+| XR glasses feature design | Stabilization modes + geometry presets | — | [`.cursor/rules/xr-glasses.mdc`](.cursor/rules/xr-glasses.mdc) |
+
+## 🔁 Building with [Turboplan](https://github.com/commoddity/turboplan)
+
+New feature work proceeds one phase task at a time. Full methodology:
+[github.com/commoddity/turboplan](https://github.com/commoddity/turboplan).
+
+```
+  📝 /task-1-plan TXX
+        ↓
+  🛠️  /task-2-execute TXX
+        ↓
+  ✅ /task-3-complete TXX → local commit (push with --push) + Manual test → next <stub-stem> branch
+```
+
+Current plan: **XR glasses support** (Viture Pro + XREAL One — stabilized
+desktop, head-tracked look-around presets) — see
+[`planning/phases/INDEX.md`](planning/phases/INDEX.md).
 
 ## Diagnostics
 

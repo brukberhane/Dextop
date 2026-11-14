@@ -1,0 +1,62 @@
+# XR Glasses Feature — pose, stabilization, geometry
+
+Applies when touching the XR glasses support: pose provider interface, 3DoF
+fusion, stabilization modes, geometry presets, head-tracked viewport, XR
+settings UI, glasses detection.
+
+**Docs (if stuck):** read `.cursor/rules/viture-glasses.mdc` and
+`.cursor/rules/xreal-glasses.mdc` for the transports; behavior references:
+https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md ·
+https://github.com/wheaney/decky-xRGaming
+
+## Settled design decisions (grill session, 2026-11-13)
+
+1. **Three stabilization modes**: body-lock (stabilization off), smooth-follow
+   (damped), world-lock (pinned; look around). Recenter action in all modes.
+2. **Geometry presets, all 2D**: Single 1920×1080; Triple monitor 5760×1080
+   (three discrete 1920×1080 zones, shell-enforced, visible gaps, farther
+   apparent distance, world-locked); Ultrawide 3840×1080 (world-locked).
+   Pan = head yaw/pitch clamped to canvas bounds.
+3. **Triple-monitor escalation rule**: if zone enforcement in
+   `CompositedWindowShell` proves too invasive during planning, DROP the
+   triple preset and ship ultrawide — never silently degrade.
+4. **Unified host-side pipeline both glasses**: pose provider interface →
+   3DoF fusion in Kotlin → per-frame transform. Never rely on glasses'
+   built-in stabilization for XR mode content.
+5. **Injection point**: head-tracked crop/position on the glasses' mirror
+   layer (`DisplayMirrorBackend.attachLayer` — `SurfaceControl.Transaction`
+   per frame) over a logical desktop sized to the preset. Native Wayland
+   compositor and Plasma shell stay untouched (except zone containment for
+   triple monitor).
+6. **Input**: phone-as-trackpad+keyboard role (existing) + physical
+   mouse/keyboard passthrough (existing).
+7. **UX**: per-glasses profile remembered, auto-applied on plug-in; XR card
+   in display settings (mode, preset, recenter); XREAL one-time onboarding
+   hint when Anchor detected.
+8. **Performance bar**: solid 60 Hz; pose-driven crop every frame; light
+   low-pass smoothing; 90/120 Hz opportunistic only.
+9. **Generic fallback**: unrecognized glasses = plain external display
+   behavior, zero stabilization, no crash.
+10. **No proprietary SDK blobs** — community protocols only (GPL-3.0 FOSS).
+
+## Invariants
+
+- Pose providers stream **3DoF orientation** (yaw/pitch/roll or quaternion);
+  6DoF is out of scope.
+- Fusion and smoothing are **host-side, in Kotlin** — never assume the
+  glasses will stabilize for you.
+- Glasses display is identified **before** XR features activate; unknown
+  glasses degrade to generic external display.
+- Mode switches (2D↔SBS, refresh) on the glasses cause HPD/EDID churn —
+  Dextop does not toggle them (2D only).
+
+## Symptom / cause / fix skeleton
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| Content moves twice as fast as head / cut off at sides | Glasses in own world-lock mode while host also transforms (double transform) | Glasses to Follow + Stabilizer off (XREAL) / 0DoF; detect via panel-duty heuristic |
+| Screen drifts slowly over minutes | IMU yaw drift uncorrected | Recenter button + periodic magnetometer/zero-velocity correction in fusion |
+| Panning feels jittery | Raw pose fed to crop without smoothing | Low-pass pose before crop; tune damping; re-test at 60 Hz |
+| Look-around shows black past canvas edge | Crop clamped but offset not | Clamp viewport offset to canvas bounds minus panel size |
+
+<!-- last-verified: 2026-11 -->

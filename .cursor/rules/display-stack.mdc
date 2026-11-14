@@ -1,0 +1,49 @@
+# Display Stack — external displays, mirroring, topology
+
+Applies when touching `MirrorService.kt`, `DisplayMirrorBackend.kt`,
+`DisplayTopologyController.kt`, `DisplayEnvironmentSettings.kt`,
+`ResolutionRepository.kt`, `CoverDisplaySessionController.kt`, or anything
+that puts pixels on a display other than the phone panel.
+
+**Docs (if stuck):** https://developer.android.com/reference/android/hardware/display/DisplayManager ·
+https://developer.android.com/reference/android/view/SurfaceControl
+
+## Invariants
+
+1. **Flutter never renders the desktop.** The desktop is a Dextop-owned
+   display (`targetDisplayId`): overlay display from
+   `Settings.Global overlay_display_devices`, or privileged
+   `IDisplayManager.createVirtualDisplay` bound to a host surface. Flutter
+   only drives settings via `MethodChannel`.
+2. **External pixels arrive via mirroring.** `DisplayMirrorBackend.attach`
+   binds a mirror of the logical desktop to a host `SurfaceView`/layer.
+   Three strategies, tried per device profile: `virtual_display`,
+   `window_manager.mirrorDisplay`, `surface_control.mirrorDisplay`. Crop and
+   letterbox math live in `attachLayer` / `attachCropped` — per-frame
+   `SurfaceControl.Transaction` work belongs there.
+3. **Extend mode is one logical framebuffer, region-cropped per screen.**
+   `extendedDesktopConfig()` unions the regions; `phoneRegion` /
+   `externalRegion` are crops in desktop pixels, not separate displays.
+4. **External display discovery** = `DisplayManager.DisplayListener` +
+   `ExternalDisplayDetector` (type 2/3 or `DisplayAddress.Physical`; never
+   overlay type 4 or virtual type 5). `FLAG_PRESENTATION` gates the output pick.
+5. **Logical desktop size is free; physical mode is not.** Overlay W×H×dpi
+   arbitrary via `requestDisplay` / `ResolutionRepository`; physical display
+   modes constrained to `display.supportedModes`.
+6. **Density is the app's job on glasses** — XR glasses typically report no
+   DPI; Dextop's density override (`wm density -d` / `setDisplayDensity`) is
+   what keeps the desktop usable on them.
+7. **Privileged operations** (topology get/set, virtual display creation,
+   mode forcing, USB grants) go through `PrivilegedAccess` +
+   `DistributionPrivilegeRuntime` — never assume adb/root presence.
+
+## Symptom / cause / fix skeleton
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| External screen black after resolution change | Phone kept stale DP state across HPD/EDID change | Treat as disconnect/reconnect; re-run attach on next DisplayListener event |
+| Mirror stretched/cropped wrong on one device | Strategy mismatch — letterbox math assumed a strategy that fell back | Log which mirror strategy attached; recompute crop for that strategy |
+| Desktop tiny (~30 dpi) on glasses display | Glasses report no/low EDID DPI | Apply Dextop density override on attach for XR displays |
+| Extend shows phone content on external | Regions swapped or crop empty | Re-derive `phoneRegion`/`externalRegion` from `extendedDesktopConfig()` |
+
+<!-- last-verified: 2026-11 -->

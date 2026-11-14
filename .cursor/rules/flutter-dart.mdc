@@ -1,0 +1,50 @@
+# Flutter / Dart craft — Dextop UI layer
+
+Applies when editing anything under `lib/` (and the Dart-facing halves of
+`test/`): widgets, settings pages, l10n, method channels, tests.
+
+**Docs (if stuck):** https://docs.flutter.dev/ ·
+https://dart.dev/effective-dart ·
+https://api.flutter.dev/ (widget catalog)
+
+## Stack facts
+
+- Dart SDK ^3.13, Flutter 3.47 stable, `flutter_lints` 6 via
+  `analysis_options.yaml` — `flutter analyze` is the lint gate.
+- UI kit: `material_3_expressive` + `material_ui` (vendored patch in
+  `third_party/material_3_expressive` — read `third_party/README.md` before
+  touching; `dependency_overrides` points at the patched tree).
+- Flutter drives settings only — desktop pixels never come from Flutter
+  (see `.cursor/rules/display-stack.mdc`). `NativeBridge` method channels
+  (`app.freedextop/...`) are the seam; heavy logic lives in Kotlin.
+
+## Invariants
+
+1. **Every user-facing string is localized.** App strings live in
+   `lib/l10n/app_*.arb` (en, ja, zh, ko, ru, pt, pt_BR) and inline strings in
+   `lib/l10n/inline/*.json` + matching
+   `android/app/src/main/resources/moe/n4tsu/dextop/l10n/inline_*.properties`.
+   A new string added to only one language file is a verify failure of
+   intent even when it compiles. Use `currentLocalizations()` /
+   `localText(context, key)` — never hardcode UI text.
+2. **State reads/writes through `NativeBridge`,** never direct platform
+   channels from widgets (shared channels are centralized; see
+   `native_display_events.dart` for the broadcast pattern).
+3. **Tests**: `flutter_test`. Widget tests for new UI; plain unit tests for
+   pure logic. Kotlin/Gradle-only behavior documents a manual or
+   instrumented path in the task file.
+4. **Style**: match the existing dense-L `ListTile`-in-`Card` settings idiom
+   (see `display_topology.dart`); `flutter_lints` + analyzer are the floor,
+   not the ceiling.
+5. **Deps**: caret ranges, pinned via `flutter pub add`; new named
+   dependencies need a rules spoke + README row (hub safety rails).
+
+## Symptom / cause / fix skeleton
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| New string renders as key or English in some locales | String added to `app_en.arb` only | Mirror into every `app_*.arb` + inline json/properties set |
+| Analyzer fails on generated l10n files | `flutter gen-l10n` output stale | Regenerate (`flutter generate-l10n` / build), never hand-edit `*.g.dart` |
+| Two method-channel handlers fight over one channel | `setMethodCallHandler` overwritten by second page | Use `NativeDisplayEvents`-style shared broadcast stream |
+
+<!-- last-verified: 2026-11 -->

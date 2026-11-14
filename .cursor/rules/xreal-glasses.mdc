@@ -1,0 +1,63 @@
+# XREAL Glasses — One-series TCP protocol over USB NIC
+
+Applies when touching the XREAL adapter: USB network detection, sensor
+stream, control commands, glasses-mode detection.
+
+**Docs (if stuck):** https://github.com/Skarian/one-xr/blob/main/docs/android-library.md (Kotlin Android library — IMU, pose, display mode, brightness; closest prior art) ·
+https://github.com/georgehorrell/xreal-one-cli (Python; full protocol notes, EDID/display-config table) ·
+https://github.com/0xcaff/xr-tools (Rust drivers; IMU, display control, calibration) ·
+https://tutorials.xreal.com/docs/glasses/one-series/spec/ (official specs) ·
+https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md (mode-detection heuristics from field testing)
+
+## Device facts
+
+- XREAL One: 1080p/eye, 50° diagonal FOV (~44°H × 26°V), ~42 ppd; One Pro:
+  57° diagonal. 2D = 1920×1080 (120 Hz max, phone hosts typically 60 Hz);
+  Full SBS = 3840×1080 @ 60 (we never drive SBS — 2D only).
+- On-glasses X1 chip offers Anchor (3DoF world-lock) / Follow / Sideview via
+  physical buttons. **No published host API** for anchor/recenter; the
+  reverse-engineered command table (verified firmware 1.8.1) has **no
+  anchor/follow/recenter opcode**. XREAL's own recenter = long-press X button.
+- Sensor + control ride a **USB network interface** on the same USB-C link:
+  link-local TCP `169.254.2.1:52998` (sensor stream: gyro/accel/mag, 128-byte
+  reports) and `:52999` (control). No `UsbManager` permission dialog needed;
+  requires `INTERNET` + `ACCESS_NETWORK_STATE` and routing via the correct
+  `Network` (`Network.socketFactory`) — plain `Socket()` will fail.
+- XREAL One must sit in **Follow + Stabilizer off** for host-side XR mode:
+  Anchor while the host also transforms = content moves twice / cut off;
+  Stabilizer on = lag then glide-back. Misconfiguration is detectable via
+  the panel-duty heuristic (panel duty ~90% = head-lock, ≤40% likely Anchor).
+- XREAL glasses report **no DPI** to Android → desktop defaults to ~30 dpi;
+  Dextop's density override handles it.
+- Official native Android SDK does not exist (Unity-only; Enterprise SDK
+  undocumented) — community TCP protocol is the only FOSS path.
+- Model identity on hand is uncertain (One vs Air — verify on hardware; Air
+  needs a different transport, same adapter interface).
+
+## Known control commands (community, firmware 1.8.1)
+
+- 2D↔SBS: `0x2822` (0 regular / 1 SBS) — causes video-mode blink + EDID re-advertise.
+- Brightness: `0x271C` (0–9); electrochromic dimmer: `0x2727`;
+  scene mode `0x2829` (hand glasses buttons to host); panel duty read `10065`.
+- Firmware/serial queries, factory config JSON (IMU/display calibration).
+- **Firmware OTAs can break the protocol** — version-gate on connect, fail
+  soft to generic external display.
+
+## Invariants
+
+- Never rely on built-in Anchor for XR-mode content (double transform).
+- Never toggle SBS from Dextop (decision: 2D only).
+- Socket must come from the USB NIC's `Network.socketFactory`, not the default.
+- No IMU sample rate is documented — measure the 52998 stream on hardware.
+
+## Symptom / cause / fix skeleton
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| TCP connect to 169.254.2.1 times out | Default network used instead of USB NIC `Network` | Enumerate `ConnectivityManager` networks; bind sockets via `Network.socketFactory` |
+| Content moves twice as fast as head | Glasses in Anchor while host transforms | Onboard to Follow + Stabilizer off; show one-time hint card |
+| Windows slide back after each head turn | Stabilizer on (smoothed 0DoF) fighting host transform | Same as above; detect via panel duty ≤40% |
+| Desktop unusably huge/tiny on glasses | Glasses report no DPI | Apply Dextop density override on XR attach |
+| Sensor stream dead after glasses OTA | Protocol changed across firmware | Version-gate control handshake; degrade to generic display, surface diagnostics |
+
+<!-- last-verified: 2026-11 -->
