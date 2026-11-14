@@ -57,6 +57,7 @@ internal object XrGlassesMonitor {
         }
         if (current != null) runCatching { app.unregisterReceiver(current) }
         VitureHidSession.stop()
+        XrealAirHidSession.stop()
     }
 
     fun onDisplaysChanged(context: Context) {
@@ -103,7 +104,7 @@ internal object XrGlassesMonitor {
         val usb = app.getSystemService(UsbManager::class.java)
         if (usb != null) {
             val denied = usb.deviceList.values
-                .filter { it.vendorId == 0x35CA && !usb.hasPermission(it) }
+                .filter { (it.vendorId == 0x35CA || it.vendorId == 0x3318) && !usb.hasPermission(it) }
                 .map { it.deviceId }
             synchronized(lock) { permissionAsked.removeAll(denied.toSet()) }
         }
@@ -119,13 +120,30 @@ internal object XrGlassesMonitor {
         val usb = context.getSystemService(UsbManager::class.java)
         val devices = usb?.deviceList?.values?.toList().orEmpty()
         val viture = devices.filter { it.vendorId == 0x35CA }
+        val xreal = devices.filter { device ->
+            device.vendorId == 0x3318 && XrealAirProtocol.KNOWN_PIDS.any { it == device.productId }
+        }
+        val names = runCatching { ExternalDisplayDetector(context).snapshot().names }.getOrDefault(emptyList())
+        val identity = identifyXrGlasses(
+            XrSignals(
+                usbDevices = devices.map { XrUsbDevice(it.vendorId, it.productId) },
+                linkAddresses = linkAddresses(context),
+                displayNames = names,
+            ),
+        )
+        val relevant = when (identity?.id) {
+            "xreal" -> xreal
+            "viture-pro" -> viture.filter { it.productId == 0x101D }
+            "viture" -> viture.filter { it.productId != 0x101D }
+            else -> emptyList()
+        }
         val permission = when {
-            viture.isEmpty() -> "not_required"
-            viture.all { usb?.hasPermission(it) == true } -> "granted"
+            relevant.isEmpty() -> "not_required"
+            relevant.all { usb?.hasPermission(it) == true } -> "granted"
             else -> "needed"
         }
         if (requestPermission && permission == "needed" && usb != null) {
-            for (device in viture) {
+            for (device in relevant) {
                 if (usb.hasPermission(device)) continue
                 val ask = synchronized(lock) { permissionAsked.add(device.deviceId) }
                 if (!ask) continue
@@ -139,14 +157,6 @@ internal object XrGlassesMonitor {
                 usb.requestPermission(device, pending)
             }
         }
-        val names = runCatching { ExternalDisplayDetector(context).snapshot().names }.getOrDefault(emptyList())
-        val identity = identifyXrGlasses(
-            XrSignals(
-                usbDevices = devices.map { XrUsbDevice(it.vendorId, it.productId) },
-                linkAddresses = linkAddresses(context),
-                displayNames = names,
-            ),
-        )
         synchronized(lock) {
             usbPermission = permission
             session = identity
@@ -164,6 +174,12 @@ internal object XrGlassesMonitor {
             VitureHidSession.start(context, vitureDevice, identity.id, identity.displayName)
         } else {
             VitureHidSession.stop()
+        }
+        val xrealDevice = if (identity?.id == "xreal") xreal.firstOrNull() else null
+        if (xrealDevice != null && permission == "granted" && identity != null) {
+            XrealAirHidSession.start(context, xrealDevice, identity.id, identity.displayName)
+        } else {
+            XrealAirHidSession.stop()
         }
     }
 

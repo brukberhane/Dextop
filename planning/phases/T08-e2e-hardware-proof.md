@@ -23,7 +23,7 @@ external-display behavior is unchanged.
 ## Requirements
 
 - [ ] Viture Pro: full session checklist passes (detect → 3 modes → presets → recenter → trackpad → unplug/replug)
-- [ ] XREAL glasses: same checklist, plus Follow/Stabilizer-off onboarding path exercised
+- [ ] XREAL Air 2 Pro: same checklist, without a Follow/Stabilizer step (no Anchor on Air). That onboarding path is One-series only, if such a unit shows up
 - [ ] Unknown glasses (any other DP display): plain external-display behavior, zero XR surface, no crash
 - [ ] Non-XR external displays (monitor/TV): existing modes unchanged (regression)
 - [ ] `make verify` green; session notes recorded in Verification with measured rates + firmware versions
@@ -109,3 +109,13 @@ From T03 close-out (2026-11-14):
 - Still open on that unit: a head turn for axis signs (left / up /
   roll right), and a Recenter press whose next logged pose is near 0.
   Those two are the Viture half of the E2E pose check.
+
+From T04 close-out (2026-11-14):
+
+- Air 2 Pro on the same phone streamed fused pose at 991.4 Hz,
+  `timestamp=ns`, IMU endpoints `0x84`/`0x05`, one START `wrote=9`.
+- Still open on that unit: the same head-turn signs and a Recenter
+  press. Stationary pose before Recenter was yaw −0.527, pitch 0.227,
+  roll 2.711 rad.
+- USB Allow opened on the sleeping phone panel while the glasses were
+  the lit display. Wake the phone to accept it.

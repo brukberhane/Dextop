@@ -1,15 +1,81 @@
-# XREAL Glasses — One-series TCP protocol over USB NIC
+# XREAL Glasses — Air-series HID protocol (owned unit) + One-series TCP (reference)
 
-Applies when touching the XREAL adapter: USB network detection, sensor
+Applies when touching the XREAL adapter: USB transport detection, sensor
 stream, control commands, glasses-mode detection.
 
-**Docs (if stuck):** https://github.com/Skarian/one-xr/blob/main/docs/android-library.md (Kotlin Android library — IMU, pose, display mode, brightness; closest prior art) ·
-https://github.com/georgehorrell/xreal-one-cli (Python; full protocol notes, EDID/display-config table) ·
-https://github.com/0xcaff/xr-tools (Rust drivers; IMU, display control, calibration) ·
-https://tutorials.xreal.com/docs/glasses/one-series/spec/ (official specs) ·
-https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md (mode-detection heuristics from field testing)
+**Docs (if stuck) — Air family (the owned glasses):**
+https://gitlab.com/wheaney/nrealAirLinuxDriver (MIT, core implementation) ·
+https://github.com/badicsalex/ar-drivers-rs (MIT, cleanest single-file reference `src/nreal_air.rs`) ·
+https://gitlab.freedesktop.org/monado/monado/-/tree/main/src/xrt/drivers/xreal_air (BSL-1.0, independent parser) ·
+https://github.com/MSmithDev/AirAPI_Windows (MIT, original reverse-engineering) ·
+https://github.com/wheaney/XRLinuxDriver (GPL-3.0, hardware-validated on Air 2 Pro) ·
+https://github.com/BladeRunner28/XrealBeam (Android prior art, **no license — reference only, never copy code**) ·
+https://github.com/pocket-xr/pocket-xr (Kotlin parser + best survey; Air path not hardware-run — treat as code-reading)
 
-## Device facts
+**Docs (if stuck) — One series (not the owned unit):**
+https://github.com/Skarian/one-xr/blob/main/docs/android-library.md,
+https://github.com/georgehorrell/xreal-one-cli,
+https://github.com/0xcaff/xr-tools ·
+https://tutorials.xreal.com/docs/glasses/one-series/spec/ ·
+https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md
+
+## Air-family HID protocol (measured facts + community cross-verified 2026-11-14)
+
+- Air, Air 2, **Air 2 Pro** speak the same protocol. Air 2 **Ultra** differs
+  (IMU on interface 2, 512-byte packets) — exclude PID `0x0426`.
+- **IMU = interface 3** (64-byte interrupt IN+OUT; commands, echoes, and
+  sensor frames all on this one interface). **MCU = interface 4**
+  (brightness/display/serial — never needed for pose). Interface 5 is
+  undocumented by any community source; leave unclaimed. Interface 6 is the
+  buttons as a standard 3-byte HID keyboard. Air 1 endpoint addresses are
+  `0x84/0x05` (IMU) and `0x86/0x07` (MCU). This Air 2 Pro logged the same
+  IMU pair on 2026-11-14: `endpoints in=132 out=5` (`0x84`/`0x05`).
+- Command frame, little-endian, interrupt OUT write (no report-id prefix
+  on Android raw USB; Windows hidapi needs a leading `0x00` — OS artifact):
+
+  `[0]=0xAA · [1..4]=CRC-32 LE (zlib `java.util.zip.CRC32`) over bytes [5..end] · [5..6]=u16 length = 3+len(data) · [7]=msgid · [8..]=data`
+
+- Start stream: msgid `0x19`, data `01` —
+  `AA C5 D1 21 42 04 00 19 01` (captured ground truth in XrealBeam and
+  AirAPI_Windows). Stop: msgid `0x19` data `00` —
+  `AA 53 E1 26 35 04 00 19 00`. A single START write streams on Air 1;
+  a stop→start pair is the belt-and-braces fallback.
+- The device echoes **every** IMU command with one 64-byte reply on IN
+  (echo head `AA`, msgid echoed). The START reply is often the INIT frame
+  `AA 53 …` instead of an echo. The first command after open can time out
+  — tolerate an unanswered first write.
+- Sensor report (64-byte IN): head `01 02` (INIT is `AA 53`); u64 LE
+  timestamp at `0x04`; gyro = i16 LE multiplier + i32 LE divisor + three
+  i24 LE at `0x12/0x15/0x18` (**deg/s**, `value = raw*mult/div`);
+  accel = mult/div at `0x1B/0x1D` + three i24 LE at `0x21/0x24/0x27`
+  (**g**, +1 g along the body axis pointing up at rest); mag block is
+  big-endian with an offset-encoding (`b0 | ((b1 ^ 0x80) << 8)`);
+  CRC-32 at offset 54 that no community driver verifies — safe to ignore
+  on read. No quaternion, no Euler: fusion is host-side.
+- Sensor body axes are x left, y back, z up. Head/viewer axes
+  (x right, y up, z back) = **(−x, z, y)**.
+- Rate: nominal 1000 Hz; Android-measured 489–665 Hz on Air 1. This Air 2
+  Pro (2026-11-14, SM-S948B): `timestamp=ns`, `pose-rate=991.4Hz`, one
+  START `wrote=9`, no stop→start retry. Derive dt from the on-report u64
+  timestamp; nominal ns but some firmware emits µs (runtime-detect: first
+  sane delta < 50,000 ⇒ µs); drop Δ ≤ 0 or ≥ 0.5 s; 24-bit tick-rollover
+  guard. Never assume a fixed rate.
+- Yaw drift expectation: ~0.04–0.07°/min warm with bias handling,
+  ~3°/min cold — a stationary gyro-bias estimator is required. The factory
+  calibration blob (msgid `0x14`/`0x15`, ~38 KB JSON on Air 1) is optional;
+  the stream runs without draining it.
+- Android specifics: `claimInterface(3, force=true)` to detach the kernel
+  `usbhid` driver; USB permission is revoked on replug (re-ask);
+  XrealBeam used a `controlTransfer(0x21, 0x09, 0x0200, iface)` SET_REPORT
+  fallback when an interface lacks an OUT endpoint — our dump shows
+  interface 3 has one, so the interrupt OUT write is primary.
+- No firmware gating on the Air family (the SDK-version/heartbeat handshake
+  is XBX-only, PIDs `0x0440/0x0442`). Air PIDs: Air `0x0424`, Air 2
+  `0x0428`, **Air 2 Pro `0x0432`**, Ultra `0x0426` (different protocol).
+
+## One-series TCP — reference (not the owned unit)
+
+### Device facts
 
 - XREAL One: 1080p/eye, 50° diagonal FOV (~44°H × 26°V), ~42 ppd; One Pro:
   57° diagonal. 2D = 1920×1080 (120 Hz max, phone hosts typically 60 Hz);
@@ -40,9 +106,13 @@ https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md (mode-detection
   `169.254.2.*` NIC — One TCP (`:52998`) does not apply to this unit.
   Card match is the vendor id, not the string and not this PID. Other
   models stay `xreal`; the adapter picks HID vs TCP from NIC presence.
-  Air HID permission is not wired yet (device filter is still Viture-only).
+  Device filter includes vendor `13080`. Grant completed 2026-11-14 18:30
+  Africa/Addis_Ababa after the dialog was accepted on the phone screen
+  (it had opened on display 0 while that panel was off). Stationary fused
+  pose before Recenter: yaw −0.527, pitch 0.227, roll 2.711 rad. Head-turn
+  signs and the Recenter press were not captured.
 
-## Known control commands (community, firmware 1.8.1)
+## Known control commands (One-series TCP, community, firmware 1.8.1)
 
 - 2D↔SBS: `0x2822` (0 regular / 1 SBS) — causes video-mode blink + EDID re-advertise.
 - Brightness: `0x271C` (0–9); electrochromic dimmer: `0x2727`;
@@ -53,15 +123,23 @@ https://github.com/pocket-xr/pocket-xr/blob/main/docs/GLASSES.md (mode-detection
 
 ## Invariants
 
-- Never rely on built-in Anchor for XR-mode content (double transform).
+- Never rely on built-in Anchor for XR-mode content (double transform). On
+  Air glasses this is moot: no glasses-side spatial chip exists at all.
 - Never toggle SBS from Dextop (decision: 2D only).
-- Socket must come from the USB NIC's `Network.socketFactory`, not the default.
-- No IMU sample rate is documented — measure the 52998 stream on hardware.
+- Air: USB permission is revoked on replug — re-ask through the card, never
+  from a poll loop. One TCP: socket must come from the USB NIC's
+  `Network.socketFactory`, not the default.
+- Air: dt comes from the on-report timestamp, never a fixed rate. This
+  unit is ns at 991.4 Hz; do not reuse the Viture 62.8 Hz clock.
 
 ## Symptom / cause / fix skeleton
 
 | Symptom | Cause | Fix |
 | ------- | ----- | --- |
+| Air: no sensor frames after START | First write after open can go unanswered | Send stop→start once. This Air 2 Pro answered the first START (`wrote=9`); keep the one retry for firmware that does not |
+| Air: replies seem shifted by one command | Every IMU command gets an echo; unread echoes pile up | Read one reply per write; INIT frame `AA 53` counts as the START reply |
+| Air: yaw crawls while head is still | Gyro bias not estimated | Stationary-bias estimator at fusion start; recenter button for the user |
+| Air: pose jumps wildly | Timestamp unit is µs on some firmware, treated as ns | Runtime-detect unit from first sane delta; drop Δ ≤ 0 or ≥ 0.5 s |
 | TCP connect to 169.254.2.1 times out | Default network used instead of USB NIC `Network` | Enumerate `ConnectivityManager` networks; bind sockets via `Network.socketFactory` |
 | Content moves twice as fast as head | Glasses in Anchor while host transforms | Onboard to Follow + Stabilizer off; show one-time hint card |
 | Windows slide back after each head turn | Stabilizer on (smoothed 0DoF) fighting host transform | Same as above; detect via panel duty ≤40% |

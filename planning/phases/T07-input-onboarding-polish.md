@@ -26,7 +26,7 @@ detected, and per-glasses profiles apply every setting on plug-in.
 - [ ] Phone trackpad+keyboard role auto-activates for XR displays (existing 'touchpad' phone role)
 - [ ] Physical mouse/keyboard passthrough verified on XR desktop
 - [ ] Cursor visible and correctly positioned across pan/offsets on all presets
-- [ ] XREAL onboarding: panel-duty heuristic (≈90% head-lock, ≤40% likely Anchor) drives a one-time hint card with one tap to XR settings
+- [ ] XREAL One onboarding only: panel-duty heuristic (≈90% head-lock, ≤40% likely Anchor) drives a one-time hint card with one tap to XR settings. Air has no Anchor signal — do not block Air onboarding on this hint
 - [ ] Profile auto-apply covers mode + preset + smoothing preference on plug-in
 - [ ] All new strings across all 8 l10n sets
 - [ ] Hot-unplug mid-session: clean teardown of pose provider, mirror, profiles; no crash; reconnect restores
@@ -41,8 +41,9 @@ detected, and per-glasses profiles apply every setting on plug-in.
   don't rebuild (`.cursor/rules/display-stack.mdc`).
 - Onboarding heuristic numbers are community-measured, not official — treat
   thresholds as heuristics with copy saying "may be" (pocket-xr precedent).
-- Hot-unplug interacts with Viture HPD churn on any residual mode changes and
-  XRAL TCP teardown — both adapters must release cleanly (T03/T04 seam).
+- Hot-unplug interacts with Viture HPD churn on any residual mode changes.
+  Both HID adapters must release cleanly (T03/T04 seam). Air has no TCP
+  teardown.
 
 ## Execution plan (filled by /task-1-plan)
 
@@ -110,3 +111,14 @@ From T03 close-out (2026-11-14):
   before releasing the interface. Closing first leaves the interface
   claimed and the next plug cannot start the stream. Both adapters
   share that order.
+
+From T04 close-out (2026-11-14):
+
+- A failed Air open must stay latched until the glasses detach. The
+  display snapshot runs about every 2 s and would otherwise reclaim
+  interface 3 in a loop.
+- The Follow + Stabilizer hint is One-series only. Air 2 Pro has no
+  glasses-side Anchor, so the hint cannot fire on the owned unit.
+- The USB Allow dialog can open on the built-in panel while that panel
+  is off and the glasses are the lit display. Wake the phone; the
+  dialog is already there.

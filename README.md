@@ -257,7 +257,7 @@ detail in the matching `.cursor/rules/*.mdc` spokes — keep both in sync.
 | Flutter / Dart | UI + settings layer | https://docs.flutter.dev | [`.cursor/rules/flutter-dart.mdc`](.cursor/rules/flutter-dart.mdc) |
 | Android display APIs (DisplayManager, SurfaceControl, virtual displays) | Core desktop pipeline | https://developer.android.com/reference/android/hardware/display/DisplayManager | [`.cursor/rules/display-stack.mdc`](.cursor/rules/display-stack.mdc) |
 | Viture glasses Gen1 HID protocol | XR glasses pose/adapter (Viture Pro) | https://github.com/bfvogel/viture-webxr-extension | [`.cursor/rules/viture-glasses.mdc`](.cursor/rules/viture-glasses.mdc) |
-| XREAL One TCP protocol | XR glasses pose/adapter (XREAL One) | https://github.com/Skarian/one-xr | [`.cursor/rules/xreal-glasses.mdc`](.cursor/rules/xreal-glasses.mdc) |
+| XREAL Air HID + One TCP | Owned Air 2 Pro pose is HID; One TCP is reference only | https://github.com/Skarian/one-xr | [`.cursor/rules/xreal-glasses.mdc`](.cursor/rules/xreal-glasses.mdc) |
 | XR glasses feature design | Stabilization modes + geometry presets | — | [`.cursor/rules/xr-glasses.mdc`](.cursor/rules/xr-glasses.mdc) |
 
 ## 🔁 Building with [Turboplan](https://github.com/commoddity/turboplan)
@@ -273,7 +273,7 @@ New feature work proceeds one phase task at a time. Full methodology:
   ✅ /task-3-complete TXX → local commit (push with --push) + Manual test → next <stub-stem> branch
 ```
 
-Current plan: **XR glasses support** (Viture Pro + XREAL One — stabilized
+Current plan: **XR glasses support** (Viture Pro + XREAL Air 2 Pro — stabilized
 desktop, head-tracked look-around presets) — see
 [`planning/phases/INDEX.md`](planning/phases/INDEX.md).
 

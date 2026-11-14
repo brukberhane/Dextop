@@ -113,3 +113,10 @@ From T03 close-out (2026-11-14):
   The Viture wire roll sits near 2.90 rad at rest, so a preset that
   reads the wire angles starts far from center. Recenter stays the
   host origin reset. Do not send a glasses-side recenter.
+
+From T04 close-out (2026-11-14):
+
+- Air fused pose before Recenter sat near yaw −0.527, pitch 0.227,
+  roll 2.711 rad while the glasses were still. Same rule as Viture:
+  presets read the origin-relative pose. Recenter was not pressed on
+  this capture.

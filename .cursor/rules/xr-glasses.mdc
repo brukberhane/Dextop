@@ -94,12 +94,14 @@ Flutter channel methods on `app.freedextop/display`: `xrGlassesState`,
 
 | Symptom | Cause | Fix |
 | ------- | ----- | --- |
-| Content moves twice as fast as head / cut off at sides | Glasses in own world-lock mode while host also transforms (double transform) | Glasses to Follow + Stabilizer off (XREAL) / 0DoF; detect via panel-duty heuristic |
-| Screen drifts slowly over minutes | IMU yaw drift uncorrected | Recenter button + periodic magnetometer/zero-velocity correction in fusion |
+| Content moves twice as fast as head / cut off at sides | Glasses in own world-lock mode while host also transforms (double transform) | One-series: Follow + Stabilizer off, detect via panel duty. Air has no Anchor mode, so this row does not apply to it |
+| Screen drifts slowly over minutes | IMU yaw drift uncorrected | Recenter, plus a stationary gyro-bias estimate. Air mag is ignored, so do not add a magnetometer fusion to chase this row |
 | Panning feels jittery | Raw pose fed to crop without smoothing | Low-pass pose before crop; tune damping; re-test at 60 Hz |
 | Look-around shows black past canvas edge | Crop clamped but offset not | Clamp viewport offset to canvas bounds minus panel size |
 | HID reader dies about 1s after open, or the next submit throws "currently queued" | `UsbDeviceConnection.requestWait(timeout)` throws and leaves the UsbRequest queued | Catch the timeout. Do not clear or requeue. Wait again on that request. |
 | Interrupt OUT write succeeds and the IN endpoint stays empty | Interrupt IN read went through bulkTransfer | Read interrupt IN with UsbRequest. bulkTransfer is fine for interrupt OUT. |
 | Next plug cannot reclaim the HID interface | Connection closed while a request wait was still in flight | Cancel the request, join the reader, then release and close. |
+| USB Allow dialog never appears while only the glasses panel is lit | The system permission UI opened on the built-in panel, and that panel is off | Wake the phone. The dialog is already there. Do not reinstall to ask again. |
+| HID interface flaps every couple of seconds after a failed open | Each display snapshot starts a new claim while the same device is still attached | Latch that device until it detaches. Clear the latch on unplug. |
 
 <!-- last-verified: 2026-11 -->

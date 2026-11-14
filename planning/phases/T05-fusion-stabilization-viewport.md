@@ -124,3 +124,13 @@ From T03 close-out (2026-11-14):
   (raw0 at byte 18). Head-left, chin-up, and roll-right were not
   captured. The first hardware viewport check has to confirm those
   three signs and flip only a wrong one.
+
+From T04 planning (2026-11-14):
+
+- Raw→orientation fusion lands in **T04's adapter edge** (Air path) per
+  the T04 stub design; Viture supplies Euler natively. This task
+  consumes the uniform orientation stream — stabilization modes,
+  smoothing, and the viewport math. Do not rebuild AHRS here.
+- Air 2 Pro measured 2026-11-14: `timestamp=ns`, `pose-rate=991.4Hz`
+  (SM-S948B). Viture is 62.8 Hz. The 60 Hz bar is the viewport output,
+  not the IMU clock. Do not downsample the Air stream to the Viture rate.
