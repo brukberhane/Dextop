@@ -107,7 +107,9 @@ When a task spans multiple areas, read every applicable rule file before startin
 - **Primary language**: Dart 3.13+ / Flutter 3.47+ (stable channel); Kotlin and
   C/C++ for the native layers.
 - **Build / verify**: `make verify` = `flutter analyze` + `flutter test` +
-  `flutter build apk --debug`. Hooks: `make install-hooks` (lefthook pre-commit).
+  Kotlin unit tests (`make ktest`, gradle `:app:testGithubDebugUnitTest`) +
+  `flutter build apk --debug --flavor github`. Hooks: `make install-hooks`
+  (lefthook pre-commit).
 
 ```
 lib/                        Flutter UI (settings pages, l10n)
@@ -133,7 +135,7 @@ planning/phases/             MVP sequence of record
 
 ```bash
 flutter pub get
-make verify            # analyze + test + build
+make verify            # analyze + test + ktest + build
 flutter run            # on a connected device
 make install-hooks     # once per clone: lefthook pre-commit -> make verify
 ```
@@ -210,8 +212,8 @@ NEVER do these without explicit user approval:
 
 - Prefer `make verify` after substantive edits
 - If verification fails, fix that layer — do not advance
-- Kotlin/Gradle-only changes still run `make verify` (analyze + test catch
-  cross-layer breaks; document manual/instrumented test paths in the task file)
+- Kotlin/Gradle-only changes still run `make verify` (`ktest` is the Kotlin
+  unit-test gate; document manual/instrumented paths in the task file)
 
 ---
 

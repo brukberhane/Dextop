@@ -12,7 +12,7 @@ see task stubs' high-level notes and `.cursor/rules/xr-glasses.mdc`
 
 | ID | Title | Status | Depends-on | Next | Layer | Notes |
 | -- | ----- | ------ | ---------- | ---- | ----- | ----- |
-| T01 | [XR pose provider abstraction + skeleton](./T01-xr-pose-provider-skeleton.md) | Pending | — | T02 | L0 | Interface + fake provider; no hardware |
+| T01 | [XR pose provider abstraction + skeleton](./T01-xr-pose-provider-skeleton.md) | ✅ | — | T02 | L0 | Interface + fake provider; no hardware |
 | T02 | [Glasses detection + XR settings card + profiles](./T02-glasses-detection-settings.md) | Pending | T01 | T03 | L6 | Viture VID/PID, XREAL USB-NIC, display-name heuristics |
 | T03 | [Viture Pro Gen1 HID adapter](./T03-viture-hid-adapter.md) | Pending | T02 | T04 | L5 | Community protocol, no SDK blob |
 | T04 | [XREAL One TCP adapter](./T04-xreal-tcp-adapter.md) | Pending | T03 | T05 | L5 | USB-NIC sockets; verify actual model on hardware |

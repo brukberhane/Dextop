@@ -109,4 +109,10 @@ fully localized.
 
 ## Reality notes
 
-*(Amended by upstream `/task-3-complete`)*
+- T01 landed `moe.n4tsu.dextop.xr`: `XrPoseProvider`, `AbstractXrPoseProvider`,
+  `FakeXrPoseProvider`, `XrPoseProviders` registry. Recenter on the settings
+  card should call `XrPoseProvider.recenter()` when a provider is registered
+  (still no production registration until T03/T04 — card can no-op safely).
+- `make verify` now includes `make ktest` (`:app:testGithubDebugUnitTest`).
+  New Kotlin under `android/app/src/test/kotlin/moe/n4tsu/dextop/xr/` mirrors
+  the main package.

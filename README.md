@@ -230,7 +230,8 @@ Android Auto controls whether a sideloaded parked app appears on a particular he
 git clone https://github.com/NarYuki/Dextop.git
 cd Dextop
 flutter pub get
-make verify        # analyze + test + build
+make verify        # analyze + test + ktest + build
+make ktest         # Kotlin unit tests (:app:testGithubDebugUnitTest)
 make install-hooks # once per clone: lefthook pre-commit -> make verify
 flutter run        # on a connected device
 ```

@@ -39,6 +39,14 @@ https://github.com/wheaney/decky-xRGaming
    behavior, zero stabilization, no crash.
 10. **No proprietary SDK blobs** — community protocols only (GPL-3.0 FOSS).
 
+## Package layout (T01+)
+
+Pose types and the provider seam live in Kotlin package
+`moe.n4tsu.dextop.xr`: `XrPoseProvider` / `AbstractXrPoseProvider` /
+`XrPoseProviders` (in-memory registry) / `FakeXrPoseProvider` (tests only).
+Production registers nothing until a device adapter task. Registry tests call
+`XrPoseProviders.clearForTests()`.
+
 ## Invariants
 
 - Pose providers stream **3DoF orientation** (yaw/pitch/roll or quaternion);

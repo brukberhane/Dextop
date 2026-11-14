@@ -30,14 +30,30 @@ https://api.flutter.dev/ (widget catalog)
 2. **State reads/writes through `NativeBridge`,** never direct platform
    channels from widgets (shared channels are centralized; see
    `native_display_events.dart` for the broadcast pattern).
-3. **Tests**: `flutter_test`. Widget tests for new UI; plain unit tests for
-   pure logic. Kotlin/Gradle-only behavior documents a manual or
-   instrumented path in the task file.
+3. **Tests**: `flutter_test` for Dart; Kotlin unit tests via `make ktest`
+   (`./android/gradlew :app:testGithubDebugUnitTest`, github flavor). Prefer
+   `kotlin.test` (majority style). Widget tests for new UI; plain unit tests
+   for pure logic.
 4. **Style**: match the existing dense-L `ListTile`-in-`Card` settings idiom
    (see `display_topology.dart`); `flutter_lints` + analyzer are the floor,
    not the ceiling.
 5. **Deps**: caret ranges, pinned via `flutter pub add`; new named
    dependencies need a rules spoke + README row (hub safety rails).
+
+## Kotlin (Android service layer)
+
+Heavy logic lives under `android/app/src/main/kotlin/moe/n4tsu/dextop/`. Prefer
+listeners/`Handler`/`Executor` over kotlinx Flow (repo has essentially zero
+Flow usage). Subsystem packages are `internal` when only the app module needs
+them (tests in the same module can still see `internal`).
+
+### `<Kotlin property setter / method JVM clash>`
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| Accidental override: same JVM signature `setX(Type)` | Kotlin `var` with a custom/`protected set` compiles to `setX`; a same-named method on the class or a subclass also emits `setX` | Prefer a `val` backed by a private field (or rename the method). Do not use a writable property setter plus a method of the same name |
+
+<!-- last-verified: 2026-11 -->
 
 ## Symptom / cause / fix skeleton
 

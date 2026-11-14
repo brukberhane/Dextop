@@ -9,14 +9,15 @@
 
 FLUTTER ?= flutter
 
-.PHONY: help analyze test build verify fmt fmt-check clean install-hooks
+.PHONY: help analyze test ktest build verify fmt fmt-check clean install-hooks
 
 help:
 	@echo "Targets:"
-	@echo "  make verify        - analyze + test + build (default gate; lefthook pre-commit)"
+	@echo "  make verify        - analyze + test + ktest + build (default gate; lefthook pre-commit)"
 	@echo "  make analyze       - flutter analyze (flutter_lints via analysis_options.yaml)"
 	@echo "  make test          - flutter test"
-	@echo "  make build         - flutter build apk --debug (override: BUILD_ARGS=...)"
+	@echo "  make ktest         - Kotlin unit tests (:app:testGithubDebugUnitTest)"
+	@echo "  make build         - flutter build apk --debug --flavor github (override: BUILD_ARGS=...)"
 	@echo "  make fmt           - dart format lib test (applies changes)"
 	@echo "  make fmt-check     - dart format --set-exit-if-changed lib test (no writes)"
 	@echo "  make clean         - flutter clean"
@@ -28,11 +29,14 @@ analyze:
 test:
 	$(FLUTTER) test
 
+ktest:
+	cd android && ./gradlew :app:testGithubDebugUnitTest
+
 BUILD_ARGS ?= apk --debug --flavor github
 build:
 	$(FLUTTER) build $(BUILD_ARGS)
 
-verify: analyze test build
+verify: analyze test ktest build
 
 fmt:
 	$(FLUTTER) dart format lib test
